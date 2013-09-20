@@ -266,13 +266,28 @@ def submit_jobs():
     ***NOTE: Priority is given to jobs with status 'retrying'.
     """
     jobs = []
-    jobs.extend(jobtracker.query("SELECT * FROM jobs " \
-                                 "WHERE status='retrying' " \
-                                 "ORDER BY updated_at ASC"))
-    jobs.extend(jobtracker.query("SELECT * FROM jobs " \
-                                 "WHERE status='new'" \
-                                 "ORDER BY updated_at ASC"))
-    for job in jobs:
+    special_query = "SELECT distinct j.* FROM jobs AS j JOIN job_files AS jf " \
+                    "ON j.id=jf.job_id JOIN files AS f ON f.id=jf.file_id WHERE " \
+                    "j.status in ('new','retrying') AND f.filename LIKE " \
+                    "'%p2030.2013____.G__.%.fits' ORDER BY j.updated_at ASC"
+    special_query2 = "SELECT distinct j.* FROM jobs AS j JOIN job_files AS jf " \
+                    "ON j.id=jf.job_id JOIN files AS f ON f.id=jf.file_id WHERE " \
+                    "j.status in ('new','retrying') AND f.filename LIKE " \
+                    "'%p2030.20______.G__.%.fits' ORDER BY j.updated_at ASC"
+    jobs.extend(jobtracker.query(special_query))
+    print len(jobs),"in special query."
+    if not len(jobs):
+        jobs.extend(jobtracker.query(special_query2))
+        print len(jobs),"in special query 2."
+    if not len(jobs):
+        jobs.extend(jobtracker.query("SELECT * FROM jobs " \
+                                     "WHERE status='retrying' " \
+                                     "ORDER BY updated_at ASC"))
+        jobs.extend(jobtracker.query("SELECT * FROM jobs " \
+                                     "WHERE status='new'" \
+                                     "ORDER BY updated_at ASC"))
+
+    for job in jobs[:50]:
         if config.jobpooler.queue_manager.can_submit():
             submit(job)
             if config.jobpooler.submit_sleep:
@@ -296,8 +311,14 @@ def submit(job_row):
         presubmission_check(fns)
         outdir = get_output_dir(fns)
         # Attempt to submit the job
-        queue_id = config.jobpooler.queue_manager.submit\
-                            (fns, outdir, job_row['id'])
+        if config.jobpooler.alternative_submit_script:
+            print "Submitting:", config.jobpooler.alternative_submit_script
+            queue_id = config.jobpooler.queue_manager.submit\
+                        (fns, outdir, job_row['id'],\
+                         script=config.jobpooler.alternative_submit_script)
+        else:
+            queue_id = config.jobpooler.queue_manager.submit\
+                        (fns, outdir, job_row['id'])
     except (FailedPreCheckError):
         # Error caught during presubmission check.
         exceptionmsgs = traceback.format_exception(*sys.exc_info())

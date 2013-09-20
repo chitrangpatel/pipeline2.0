@@ -521,8 +521,15 @@ def set_up_job(filenms, workdir, resultsdir,zerodm=False):
         job.workdir = workdir
 
     # Create a directory to hold all the subbands
+    if config.processing.use_pbs_subdir:
+        pbs_job_id = os.getenv("PBS_JOBID")
+        base_tmp_dir = os.path.join(config.processing.base_tmp_dir, \
+                                    pbs_job_id) 
+    else:
+        base_tmp_dir = config.processing.base_tmp_dir
+
     job.tempdir = tempfile.mkdtemp(suffix="_tmp", prefix=job.basefilenm, \
-                        dir=config.processing.base_tmp_dir)
+                                   dir=base_tmp_dir)
     
     #####
     # Print some info useful for debugging
@@ -608,26 +615,16 @@ def search_job(job):
                 job.dedispersing_time += timed_execute(cmd)
             
             # Iterate over all the new DMs
+            basenms_forpass = []
             for dmstr in ddplan.dmlist[passnum]:
                 dmstrs.append(dmstr)
                 basenm = os.path.join(job.tempdir, job.basefilenm+"_DM"+dmstr)
+                basenms_forpass.append(basenm)
+
                 datnm = basenm+".dat"
                 fftnm = basenm+".fft"
                 infnm = basenm+".inf"
 
-                # Do the single-pulse search
-                if job.zerodm:
-                    cmd = "single_pulse_search.py -b -p -m %f -t %f %s"%\
-                          (config.searching.singlepulse_maxwidth, \
-                           config.searching.singlepulse_threshold, datnm)
-                else:
-                    cmd = "single_pulse_search.py -p -m %f -t %f %s"%\
-                          (config.searching.singlepulse_maxwidth, \
-                           config.searching.singlepulse_threshold, datnm)
-                job.singlepulse_time += timed_execute(cmd)
-                try:
-                    shutil.move(basenm+".singlepulse", job.workdir)
-                except: pass
 
                 # FFT, zap, and de-redden
                 cmd = "realfft %s"%datnm
@@ -678,18 +675,31 @@ def search_job(job):
                                         job.workdir)
                     except: pass
 
-                # Move the .inf files
-                try:
-                    shutil.move(infnm, job.workdir)
-                except: pass
-                # Remove the .dat and .fft files
-                try:
-                    os.remove(datnm)
-                except: pass
+                # Remove the .fft files
                 try:
                     os.remove(fftnm)
                 except: pass
 
+            # Do the single-pulse search
+            dats_str = '.dat '.join(basenms_forpass) + '.dat'
+            if job.zerodm:
+                cmd = "single_pulse_search.py -b -p -m %f -t %f %s"%\
+                      (config.searching.singlepulse_maxwidth, \
+                       config.searching.singlepulse_threshold, dats_str)
+            else:
+                cmd = "single_pulse_search.py -p -m %f -t %f %s"%\
+                      (config.searching.singlepulse_maxwidth, \
+                       config.searching.singlepulse_threshold, dats_str)
+            job.singlepulse_time += timed_execute(cmd)
+
+            # Move .singlepulse and .inf files and delete .dat files
+            for basenm in basenms_forpass:
+                try:
+                    shutil.move(basenm+".singlepulse", job.workdir)
+                    shutil.move(basenm+".inf", job.workdir)
+                    os.remove(basenm+".dat")
+                except: pass
+            
             if config.searching.use_subbands:
                 if config.searching.fold_rawdata:
                     # Subband files are no longer needed
@@ -864,7 +874,7 @@ def search_job(job):
     psfiles = glob.glob("*.ps")
     for psfile in psfiles:
         # The '[0]' appeneded to the end of psfile is to convert only the 1st page
-        timed_execute("convert -quality 90 %s -background white -flatten -rotate 90 +matte %s" % \
+        timed_execute("convert -quality 90 %s -background white -trim -rotate 90 +matte %s" % \
                             (psfile+"[0]", psfile[:-3]+".png"))
         timed_execute("gzip "+psfile)
     
@@ -927,7 +937,8 @@ def clean_up(job):
     # Copy all the important stuff to the output directory
     resultglobs = ["*rfifind.[bimors]*", "*.tgz", "*.png", \
                     "*.zaplist", "search_params.txt", "*.accelcands*", \
-                    "*_merge.out", "candidate_attributes.txt", "groups.txt"]
+                    "*_merge.out", "candidate_attributes.txt", "groups.txt", \
+                    "*_calrows.txt"]
     
     # Print some info useful for debugging
     print "Contents of workdir (%s) before copy: " % job.workdir
