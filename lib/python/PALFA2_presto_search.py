@@ -344,7 +344,7 @@ class obs_info:
             self.ddplans.append(dedisp_plan( 990.4,  1.0,    76,     11,     96,       10 ))
             self.ddplans.append(dedisp_plan(1826.4,  2.0,    72,     10,     96,       15 ))
             self.ddplans.append(dedisp_plan(3266.4,  3.0,    76,     10,     96,       30 ))
-            self.ddplans.append(dedisp_plan(5546.4,  5.0,    72,     12,     96,       64 ))
+            self.ddplans.append(dedisp_plan(5546.4,  5.0,    72,     12,     96,       30 ))
         elif self.backend.lower() == 'wapp':
             # The values here are:       lodm dmstep dms/call #calls #subbands downsamp
             self.ddplans.append(dedisp_plan(   0.0,  0.3,    76,      9,     96,        1 ))
