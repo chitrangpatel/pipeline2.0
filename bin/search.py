@@ -128,7 +128,7 @@ def set_up():
     # Copy data files locally
     for fn in fns:
         system_call("rsync -auvl %s %s" % (fn, workdir))
-    fns = [os.path.join(workdir, os.path.split(fn)[-1]) for fn in fns]
+    fns = sorted([os.path.split(fn)[-1] for fn in fns])
 
     return fns, workdir, resultsdir, outdir
 
