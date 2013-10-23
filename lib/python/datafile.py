@@ -709,7 +709,7 @@ class MergedMockPsrfitsData(MockPsrfitsBaseData):
             complete = False
         return complete
 
-    def get_subints_with_cal(self, nsigma=50, margin_of_error=1):
+    def get_subints_with_cal(self, nsigma=20, margin_of_error=1):
         """Return a list of subint numbers with the cal turned on.
  
             Input:
