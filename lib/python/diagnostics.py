@@ -805,6 +805,8 @@ DIAGNOSTIC_TYPES = [RFIPercentageDiagnostic,
                     PercentZappedTotal,
                     PercentZappedBelow10Hz,
                     PercentZappedBelow1Hz,
+                    CalRemovalSummary,
+                    NumCalRowsRemoved
                    ]
 
 
