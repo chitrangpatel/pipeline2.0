@@ -640,7 +640,7 @@ def search_job(job):
                 except: pass
                 
                 # Do the low-acceleration search
-                cmd = "accelsearch -harmpolish -numharm %d -sigma %f " \
+                cmd = "accelsearch -inmem -numharm %d -sigma %f " \
                         "-zmax %d -flo %f %s"%\
                         (config.searching.lo_accel_numharm, \
                          config.searching.lo_accel_sigma, \
@@ -659,7 +659,7 @@ def search_job(job):
         
                 # Do the high-acceleration search (only for non-zerodm case)
                 if not job.zerodm:
-                    cmd = "accelsearch -harmpolish -numharm %d -sigma %f " \
+                    cmd = "accelsearch -inmem -numharm %d -sigma %f " \
                             "-zmax %d -flo %f %s"%\
                             (config.searching.hi_accel_numharm, \
                              config.searching.hi_accel_sigma, \
