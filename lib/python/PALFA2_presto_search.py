@@ -566,8 +566,8 @@ def search_job(job):
         except: pass
 
     # rfifind the data file
-    cmd = "rfifind %s %s -time %.17g -o %s %s" % \
-          (config.searching.datatype_flag, zerodm_flag, config.searching.rfifind_chunk_time, 
+    cmd = "rfifind %s -time %.17g -o %s %s" % \
+          (config.searching.datatype_flag, config.searching.rfifind_chunk_time, 
            job.basefilenm, job.filenmstr)
     job.rfifind_time += timed_execute(cmd, stdout="%s_rfifind.out" % job.basefilenm)
     maskfilenm = job.basefilenm + "_rfifind.mask"
