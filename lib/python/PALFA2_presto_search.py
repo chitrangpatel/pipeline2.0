@@ -23,8 +23,7 @@ import prepfold
 import matplotlib
 matplotlib.use('agg') #Use AGG (png) backend to plot
 import matplotlib.pyplot as plt
-import mysifting as sifting # Temporarily until 'sifting.py' 
-                            # in PRESTO is updated
+import sifting  
 
 import datafile
 import config.searching
