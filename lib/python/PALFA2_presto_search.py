@@ -771,7 +771,7 @@ def search_job(job):
         sys.stdout.flush()
         sifting.write_candlist(all_accel_cands, job.basefilenm+".accelcands")
         # Make sifting summary plots
-        all_accel_cands.plot_goodbad()
+        all_accel_cands.plot_rejects()
         plt.title("%s Rejected Cands" % job.basefilenm)
         plt.savefig(job.basefilenm+".accelcands.rejects.png")
         all_accel_cands.plot_summary()
