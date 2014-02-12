@@ -747,14 +747,14 @@ def search_job(job):
     # Sift through the candidates to choose the best to fold
     job.sifting_time = time.time()
 
-    lo_accel_cands = sifting.read_candidates(glob.glob("*ACCEL_%d" % config.searching.lo_accel_zmax))
+    lo_accel_cands = sifting.read_candidates(glob.glob("*ACCEL_%d" % config.searching.lo_accel_zmax), track=True)
     if len(lo_accel_cands):
         lo_accel_cands = sifting.remove_duplicate_candidates(lo_accel_cands)
     if len(lo_accel_cands):
         lo_accel_cands = sifting.remove_DM_problems(lo_accel_cands, config.searching.numhits_to_fold,
                                                     dmstrs, config.searching.low_DM_cutoff)
 
-    hi_accel_cands = sifting.read_candidates(glob.glob("*ACCEL_%d" % config.searching.hi_accel_zmax))
+    hi_accel_cands = sifting.read_candidates(glob.glob("*ACCEL_%d" % config.searching.hi_accel_zmax), track=True)
     if len(hi_accel_cands):
         hi_accel_cands = sifting.remove_duplicate_candidates(hi_accel_cands)
     if len(hi_accel_cands):
