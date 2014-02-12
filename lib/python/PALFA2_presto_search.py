@@ -821,7 +821,7 @@ def search_job(job):
     os.putenv("THEANO_FLAGS","compiledir=%s" % theano_compiledir) 
 
     # Rate candidates
-    timed_execute("rate_pfds.py --redirect-warnings --include-all -x prepfold_sigma *.pfd")
+    timed_execute("rate_pfds.py --redirect-warnings --include-all *.pfd")
     sys.stdout.flush()
 
     # Calculate some candidate attributes from pfds
