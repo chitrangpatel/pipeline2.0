@@ -95,7 +95,7 @@ class CornellFTP(M2Crypto.ftpslib.FTP_TLS):
         for i in range(len(dir_list) - 1):
           test_dir += dir_list[i] + "/"
           filelist = self.list_files(test_dir) 
-          exists = dir_list[i+1] in filelist
+          exists = os.path.join(test_dir,dir_list[i+1]) in filelist
           if not exists:
               return False
         return True
