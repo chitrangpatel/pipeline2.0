@@ -133,7 +133,7 @@ class Database:
             table = prettytable.PrettyTable(fields)
             for row in self.cursor:
                 table.add_row(row)
-            table.printt()
+            print table
 
     def insert(self, query):
         self.cursor.execute(query)
