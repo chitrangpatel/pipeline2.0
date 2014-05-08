@@ -87,8 +87,8 @@ def upload_results(job_submit):
             None
     """
     print "Attempting to upload results"
-    print "\tJob ID: %d, Job submission ID: %d" % \
-            (job_submit['job_id'], job_submit['id'])
+    print "\tJob ID: %d, Job submission ID: %d\n\tOutput Dir: %s" % \
+            (job_submit['job_id'], job_submit['id'], job_submit['output_dir'])
     if debug.UPLOAD:
         upload.upload_timing_summary = {}
         starttime = time.time()
@@ -207,7 +207,7 @@ def upload_results(job_submit):
                 hdr.upload_FTP(cftp,db)
                 cftp.quit()
 
-            except CornellFTP.CornellFTPTimeout:
+            except (CornellFTP.CornellFTPTimeout, CornellFTP.CornellFTPError):
                 # Connection error during FTP upload. Reconnect and try again.
                 print "FTP connection lost. Reconnecting..."
                 attempts += 1
