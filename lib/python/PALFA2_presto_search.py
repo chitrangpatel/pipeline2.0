@@ -872,9 +872,19 @@ def search_job(job):
     # Now step through the .ps files and convert them to .png and gzip them
 
     psfiles = glob.glob("*.ps")
-    for psfile in psfiles:
+    psfiles_rotate = glob.glob("*.pfd.ps") + glob.glob("*_rfifind.ps")
+
+    # rotate pfd and rfifind plots but not others
+    for psfile in psfiles_rotate:
         # The '[0]' appeneded to the end of psfile is to convert only the 1st page
         timed_execute("convert -quality 90 %s -background white -trim -rotate 90 -flatten %s" % \
+                            (psfile+"[0]", psfile[:-3]+".png"))
+        timed_execute("gzip "+psfile)
+        psfiles.remove(psfile)
+
+    for psfile in psfiles:
+        # The '[0]' appeneded to the end of psfile is to convert only the 1st page
+        timed_execute("convert -quality 90 %s -background white -trim -flatten %s" % \
                             (psfile+"[0]", psfile[:-3]+".png"))
         timed_execute("gzip "+psfile)
     
