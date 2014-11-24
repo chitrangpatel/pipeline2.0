@@ -101,6 +101,11 @@ def upload_results(job_submit):
             errormsg = 'ERROR: Results directory, %s, does not exist or is empty for job_id=%d' %\
                        (dir, job_submit['job_id'])
             raise upload.UploadNonFatalError(errormsg)
+        elif len(os.listdir(dir)) == 1 and os.listdir(dir)[0] == 'zerodm' \
+                                       and not os.listdir(os.path.join(dir,os.listdir(dir)[0])):
+            errormsg = 'ERROR: Results directory, %s, does not exist or is empty for job_id=%d' %\
+                       (dir, job_submit['job_id'])
+            raise upload.UploadNonFatalError(errormsg)
 
         fitsfiles = get_fitsfiles(job_submit)
         try:
@@ -210,6 +215,8 @@ def upload_results(job_submit):
             except (CornellFTP.CornellFTPTimeout, CornellFTP.CornellFTPError):
                 # Connection error during FTP upload. Reconnect and try again.
                 print "FTP connection lost. Reconnecting..."
+                exceptionmsgs = traceback.format_exception(*sys.exc_info())
+                print"".join(exceptionmsgs)
                 attempts += 1
                 try:
                     cftp.quit()
