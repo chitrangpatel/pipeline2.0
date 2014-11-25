@@ -7,6 +7,7 @@ import PBSQuery
 
 import debug
 import queue_managers
+import pipeline_utils
 import config.basic
 import config.email
 
@@ -33,7 +34,8 @@ class PBSManager(queue_managers.generic_interface.PipelineQueueManager):
         self.pbs_conn = PBSQuery.PBSQuery()
 
         # initiate last update to 10 minutes ago, so that it will be updated immediately on next _showq
-        self.showq_last_update = time.time() - 2 * 300
+        #self.showq_last_update = time.time() - 2 * 300
+        self.queue = self._get_PBSQueue(first_run=True)
 
     def submit(self, datafiles, outdir, job_id, \
                 script=os.path.join(config.basic.pipelinedir, 'bin', 'search.py')):
@@ -76,7 +78,7 @@ class PBSManager(queue_managers.generic_interface.PipelineQueueManager):
             stdoutlog = os.devnull
 
         # bit of hack to get jobs that are short enough to go to Sandy Bridge nodes
-        if filesize < 2.1:
+        if filesize < 1.0:
             resources = 'nodes=1:ppn=1:sandybridge,walltime=36:00:00'
         else:
             resources = 'nodes=1:ppn=1,walltime=%s' % walltime
@@ -100,7 +102,8 @@ class PBSManager(queue_managers.generic_interface.PipelineQueueManager):
         if not queue_id:
             errormsg  = "No job identifier returned by qsub!\n"
             errormsg += "\tCommand executed: %s\n" % cmd
-            raise queue_manager.QueueManagerNonFatalError(errormsg)
+            #raise queue_managers.QueueManagerNonFatalError(errormsg)
+            raise pipeline_utils.PipelineError(errormsg) # for debugging
         else:
             # There is occasionally a short delay between submission and 
             # the job appearing on the queue, so sleep for 1 second. 
@@ -166,11 +169,12 @@ class PBSManager(queue_managers.generic_interface.PipelineQueueManager):
             #raise queue_managers.QueueManagerNonFatalError(errormsg)
             raise pipeline_utils.PipelineError(errormsg) # for debugging
 
-    def status(self):
+    def status(self,queue=None,update_time=300):
         """Return a tuple of number of jobs running and queued for the pipeline
 
-        Inputs:
-            None
+        Optional Inputs:
+            queue: PBSQueue instance for which to count number of jobs.
+                       Default is to use self._get_PBSQueue()
 
         Outputs:
             running: The number of pipeline jobs currently marked as running 
@@ -180,7 +184,10 @@ class PBSManager(queue_managers.generic_interface.PipelineQueueManager):
         """
         numrunning = 0
         numqueued = 0
-        jobs = self._get_PBSQueue()
+        if queue is None:
+            jobs = self._get_PBSQueue(update_time=update_time)
+        else:
+            jobs = queue
         for j in jobs.keys():
             if jobs[j]['Job_Name'][0].startswith(self.job_basename):
                 if 'R' in jobs[j]['job_state']:
@@ -252,7 +259,7 @@ class PBSManager(queue_managers.generic_interface.PipelineQueueManager):
                 err_f.close()
         return errors
 
-    def _get_PBSQueue(self, update_time=300):
+    def _get_PBSQueue(self, update_time=300, first_run=False):
         """A private method not required by the PipelineQueueManager interface.
             Query the PBS queue if time since last update is < update_time.
             Otherwise return the already cached queue.
@@ -265,13 +272,26 @@ class PBSManager(queue_managers.generic_interface.PipelineQueueManager):
                 queue: Output of PBSQuery.PBSQuery().getjobs()
         """
 
-        if time.time() >= self.showq_last_update + update_time:
-            print "Updating queue cache ..."
-
+        if first_run:
             queue = self.pbs_conn.getjobs()
-            
             self.queue = queue
             self.showq_last_update = time.time()
+
+        elif time.time() >= self.showq_last_update + update_time:
+            print "Updating queue cache ..."
+
+            running_before, queued_before = self.status( update_time=(time.time()-self.showq_last_update+1) )
+            queue = self.pbs_conn.getjobs()
+            running_after, queued_after = self.status(queue=queue)
+            
+            if running_before - running_after > 100: # over 100 jobs dropped, somethings wrong, wait 5 min
+                print "Over 100 jobs dropped since last queue update. Something wrong?" + \
+                      "\n\tSkipping this one and waiting for next queue update."
+                self.showq_last_update = time.time()
+                queue = self.queue
+            else:
+                self.queue = queue
+                self.showq_last_update = time.time()
         else:
             queue = self.queue
                       
