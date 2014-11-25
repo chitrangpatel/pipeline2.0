@@ -29,11 +29,12 @@ class SinglePulseTarball(upload.FTPable,upload.Uploadable):
     # how to compare them (as values)
     to_cmp = {'header_id': '%d', \
               'filename': '%s', \
-              'ftp_path': '%s', \
+              #'ftp_path': '%s', \
               'filetype': '%s', \
               'institution': '%s', \
-              'pipeline': '%s', \
-              'versionnum': '%s'}
+              #'pipeline': '%s', \
+              'pipeline': '%s'}
+              #'versionnum': '%s'}
     
     def __init__(self, filename, versionnum, header_id=None, timestamp_mjd=None):
         self.header_id = header_id
@@ -64,9 +65,9 @@ class SinglePulseTarball(upload.FTPable,upload.Uploadable):
             "@uploaded=0"
         return sprocstr
 
-    def compare_with_db(self, dbname='default'):
-        """Grab corresponding file info from DB and compare values.
-            Raise a SinglePulseCandidateError if any mismatch is found.
+    def check_already_uploaded(self, dbname='default'):
+        """Check to see if already uploaded to DB (same as compare_with_db but
+            returns True/False.
 
             Input:
                 dbname: Name of database to connect to, or a database
@@ -83,16 +84,81 @@ class SinglePulseTarball(upload.FTPable,upload.Uploadable):
                         "spf.ftpfilepath as ftp_path," \
                         "spft.sp_files_type AS filetype, " \
                         "v.institution, " \
-                        "v.pipeline, " \
-                        "v.version_number AS versionnum " \
+                        "v.pipeline " \
+                        #"v.pipeline, " \
+                        #"v.version_number AS versionnum " \
                   "FROM sp_files_info AS spf " \
                   "LEFT JOIN versions AS v ON v.version_id=spf.version_id " \
                   "LEFT JOIN sp_files_types AS spft " \
                         "ON spft.sp_files_type_id=spf.sp_files_type_id " \
-                  "WHERE spft.sp_files_type='%s' AND v.version_number='%s' AND " \
+                  #"WHERE spft.sp_files_type='%s' AND v.version_number='%s' AND " \
+                  "WHERE spft.sp_files_type='%s' AND " \
                             "spf.header_id=%d AND v.institution='%s' AND " \
                             "v.pipeline='%s'" % \
-                        (self.filetype, self.versionnum, self.header_id, \
+                        #(self.filetype, self.versionnum, self.header_id, \
+                        (self.filetype, self.header_id, \
+                            config.basic.institution, config.basic.pipeline))
+        rows = db.cursor.fetchall()
+        if type(dbname) == types.StringType:
+            db.close()
+        if not rows:
+            # No matching entry in common DB
+            print "No matching entry in common DB"
+            return False
+        elif len(rows) > 1:
+            # Too many matching entries!
+            raise ValueError("Too many matching entries in common DB!\n" \
+                                "(header_id: %d, filetype: %s, version_number: %s)" % \
+                                (self.header_id, self.filetype, self.versionnum))
+        else:
+            desc = [d[0] for d in db.cursor.description]
+            r = dict(zip(desc, rows[0]))
+            errormsgs = []
+            for var, fmt in self.to_cmp.iteritems():
+                local = (fmt % getattr(self, var)).lower()
+                fromdb = (fmt % r[var]).lower()
+                if local != fromdb:
+                    errormsgs.append("Values for '%s' don't match (local: %s, DB: %s)" % \
+                                        (var, local, fromdb))
+            if errormsgs:
+                #Single pulse tarball info doesn't match returned row
+                print "Single pulse tarball info doesn't match returned row"
+                return False
+
+            return True
+
+    def compare_with_db(self, dbname='default'):
+        """Grab corresponding file info from DB and compare values.
+            Raise a SinglePulseCandidateError if any mismatch is found.
+
+            Input:
+                dbname: Name of database to connect to, or a database
+                        connection to use (Defaut: 'default').
+            Output:
+                None
+        """
+        if isinstance(dbname, database.Database):
+            db = dbname
+        else:
+            db = database.Database(dbname)
+        db.execute("SELECT spf.header_id, " \
+                        "spf.filename, " \
+                        #"spf.ftpfilepath as ftp_path," \
+                        "spft.sp_files_type AS filetype, " \
+                        "v.institution, " \
+                        "v.pipeline " \
+                        #"v.pipeline, " \
+                        #"v.version_number AS versionnum " \
+                  "FROM sp_files_info AS spf " \
+                  "LEFT JOIN versions AS v ON v.version_id=spf.version_id " \
+                  "LEFT JOIN sp_files_types AS spft " \
+                        "ON spft.sp_files_type_id=spf.sp_files_type_id " \
+                  #"WHERE spft.sp_files_type='%s' AND v.version_number='%s' AND " \
+                  "WHERE spft.sp_files_type='%s' AND " \
+                            "spf.header_id=%d AND v.institution='%s' AND " \
+                            "v.pipeline='%s'" % \
+                        #(self.filetype, self.versionnum, self.header_id, \
+                        (self.filetype, self.header_id, \
                             config.basic.institution, config.basic.pipeline))
         rows = db.cursor.fetchall()
         if type(dbname) == types.StringType:
@@ -137,19 +203,23 @@ class SinglePulseTarball(upload.FTPable,upload.Uploadable):
             raise SinglePulseCandidateError("Cannot upload SP tarball " \
                     "with header_id == None!")
 
-        if debug.UPLOAD: 
-            starttime = time.time()
-        id = super(SinglePulseTarball, self).upload(dbname=dbname, \
-                    *args, **kwargs)
-        self.compare_with_db(dbname=dbname)
-        
-        if debug.UPLOAD:
-            upload.upload_timing_summary['sp info (db)'] = \
-                upload.upload_timing_summary.setdefault('sp info (db)', 0) + \
-                (time.time()-starttime)
-        if id < 0:
-            # An error has occurred
-            raise SinglePulseCandidateError(path)
+        if self.check_already_uploaded(dbname=dbname):
+            print self.filetype,"already uploaded. Will skip." 
+            self.uploaded = True
+        else:
+            if debug.UPLOAD: 
+                starttime = time.time()
+            id = super(SinglePulseTarball, self).upload(dbname=dbname, \
+                        *args, **kwargs)
+            self.compare_with_db(dbname=dbname)
+            
+            if debug.UPLOAD:
+                upload.upload_timing_summary['sp info (db)'] = \
+                    upload.upload_timing_summary.setdefault('sp info (db)', 0) + \
+                    (time.time()-starttime)
+            if id < 0:
+                # An error has occurred
+                raise SinglePulseCandidateError(path)
 
     def upload_FTP(self,cftp,dbname='default'):
         """An extension to the inherited 'upload_FTP' method.
@@ -169,10 +239,15 @@ class SinglePulseTarball(upload.FTPable,upload.Uploadable):
         if not self.uploaded:
 
 	    ftp_fullpath = os.path.join(self.ftp_path, self.filename)
+            print self.ftp_path
+            print cftp.dir_exists(self.ftp_path)
 	    if not cftp.dir_exists(self.ftp_path):
 		cftp.mkd(self.ftp_path)
 
-	    cftp.upload(self.fullpath, ftp_fullpath)
+            if ftp_fullpath in cftp.list_files(self.ftp_path):
+                print "SP Tarball already there. Skipping FTP upload."
+            else:
+	        cftp.upload(self.fullpath, ftp_fullpath)
 
 	    db.execute("spSPCandBinUploadConf " + \
 		   "@sp_file_type='%s', " % self.filetype + \

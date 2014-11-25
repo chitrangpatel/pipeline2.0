@@ -33,8 +33,8 @@ class Header(upload.Uploadable,upload.FTPable):
               'beam_id': '%d', \
               'original_file': '%s', \
               'sample_time': '%f', \
-              'observation_time': '%f', \
-              'timestamp_mjd': '%.10f', \
+              #'observation_time': '%f', \
+              #'timestamp_mjd': '%.10f', \
               'num_samples_per_record': '%d', \
               'center_freq': '%f', \
               'channel_bandwidth': '%f', \
@@ -45,13 +45,13 @@ class Header(upload.Uploadable,upload.FTPable):
               'orig_galactic_longitude': '%.8f', \
               'orig_galactic_latitude': '%.8f', \
               'source_name': '%s', \
-              'start_ast': '%.8f', \
+              #'start_ast': '%.8f', \
               'start_lst': '%.8f', \
               'project_id': '%s', \
               'observers': '%s', \
-              'file_size': '%d', \
-              'data_size': '%d', \
-              'num_samples': '%d', \
+              #'file_size': '%d', \
+              #'data_size': '%d', \
+              #'num_samples': '%d', \
               'orig_ra_deg': '%.8f', \
               'orig_dec_deg': '%.8f', \
               'right_ascension': '%.4f', \
