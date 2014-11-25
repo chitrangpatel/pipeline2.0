@@ -35,7 +35,7 @@ class ErrorMailer:
                                                 socket.gethostname())
                 self.client = smtp('localhost', config.email.smtp_port)
             else:
-                self.msg['From'] = None
+                #self.msg['From'] = None
                 self.client = smtp(config.email.smtp_host, config.email.smtp_port)
 
     def send(self):
@@ -46,7 +46,8 @@ class ErrorMailer:
             self.client.ehlo()
             if config.email.smtp_login:
                 self.client.login(config.email.smtp_username,config.email.smtp_password)
-            self.client.sendmail(self.msg['From'], self.msg['To'], self.msg.as_string())
+            #self.client.sendmail(self.msg['From'], self.msg['To'], self.msg.as_string())
+            self.client.sendmail(None, self.msg['To'], self.msg.as_string())
             self.client.quit()
 
     def __str__(self):
