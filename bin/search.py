@@ -168,17 +168,29 @@ def copy_zaplist(fns, workdir):
                                         "zaplists.tar.gz"), mode='r')
     members = zaptar.getmembers()
     for customzapfn in customzapfns:
+        radar_samples_fn = os.path.splitext(customzapfn)[0] + '_radar_samples.txt'
         matches = [mem for mem in members \
                     if mem.name.endswith(customzapfn)]
+        radar_matches = [mem for mem in members \
+                          if mem.name.endswith(radar_samples_fn)]
         if matches:
             ti = matches[0] # The first TarInfo object found 
                             # that matches the file name
+            radar_ti = radar_matches[0]
+
             # Write custom zaplist to workdir
             localfn = os.path.join(workdir, customzapfn)
             f = open(localfn, 'w')
             f.write(zaptar.extractfile(ti).read())
             f.close()
             print "Copied custom zaplist: %s" % customzapfn
+
+            # Write radar samples list to workdir
+            radar_localfn = os.path.join(workdir, radar_samples_fn)
+            f = open(radar_localfn, 'w')
+            f.write(zaptar.extractfile(radar_ti).read())
+            f.close()
+            print "Copied radar samples list: %s" % radar_samples_fn
             break
         else:
             # The member we searched for doesn't exist, try next one
