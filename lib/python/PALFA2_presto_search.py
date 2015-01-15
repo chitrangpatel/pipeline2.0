@@ -528,7 +528,7 @@ def set_up_job(filenms, workdir, resultsdir,zerodm=False):
     else:
         base_tmp_dir = config.processing.base_tmp_dir
 
-    job.tempdir = tempfile.mkdtemp(suffix="_tmp", prefix=job.basefilenm, \
+    job.tempdir = tempfile.mkdtemp(suffix="_tmp", prefix="PALFA_", \
                                    dir=base_tmp_dir)
     
     #####
