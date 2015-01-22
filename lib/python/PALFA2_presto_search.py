@@ -559,10 +559,11 @@ def search_job(job):
     zaplist = glob.glob("*.zaplist")[0]
     print "Using %s as zaplist" % zaplist
 
-    # Use whatever _radar_samples.txt is found in the current directory
-    radar_list = glob.glob("*_radar_samples.txt")[0]
-    os.putenv('CLIPBINSFILE',os.path.join(job.workdir,radar_list))
-    print "Using %s as radar samples list" % radar_list
+    # Use whatever *_radar_samples.txt is found in the current directory
+    if config.searching.use_radar_clipping:
+        radar_list = glob.glob("*_radar_samples.txt")[0]
+        os.putenv('CLIPBINSFILE',os.path.join(job.workdir,radar_list))
+        print "Using %s as radar samples list" % radar_list
 
     if config.searching.use_subbands and config.searching.fold_rawdata:
         # make a directory to keep subbands so they can be used to fold later
