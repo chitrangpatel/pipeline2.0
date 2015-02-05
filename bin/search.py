@@ -164,8 +164,9 @@ def copy_zaplist(fns, workdir):
     # Try to find custom zaplist for this MJD
     customzapfns.append("%s.%s.all.zaplist" % (parsed['projid'], parsed['date']))
 
-    zaptar = tarfile.open(os.path.join(config.processing.zaplistdir, \
-                                        "zaplists.tar.gz"), mode='r')
+    zaptar_fn = pipeline_utils.get_zaplist_tarball(no_check=True)
+    zaptar = tarfile.open(zaptar_fn, mode='r')
+
     members = zaptar.getmembers()
     for customzapfn in customzapfns:
         radar_samples_fn = os.path.splitext(customzapfn)[0] + '_radar_samples.txt'
