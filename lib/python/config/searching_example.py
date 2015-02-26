@@ -8,6 +8,10 @@ fold_rawdata          = True
 # To do single-pulse and accel search both with and without zerodm set 
 # the appropriate option to True (if False, only without)
 use_zerodm            = False
+# To use a radar samples list of bins to be removed by clipping set to True.
+# A corresponding list needs to be present in the zaplist tarball 
+# for this to have an effect.
+use_radar_clipping    = False
 #To do grouping analysis on singlepulse output set to True.
 sp_grouping           = False
 

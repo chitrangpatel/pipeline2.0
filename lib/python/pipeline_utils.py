@@ -207,7 +207,7 @@ def get_modtime(file, local=False):
     return modtime
 
 
-def get_zaplist_tarball(force_download=False, verbose=False):
+def get_zaplist_tarball(force_download=False, no_check=False, verbose=False):
     """Download zaplist tarball. If the local version has a
         modification time equal to, or later than, the version
         on the FTP server don't download unless 'force_download'
@@ -216,29 +216,42 @@ def get_zaplist_tarball(force_download=False, verbose=False):
         Input:
             force_download: Download zaplist tarball regardless
                 of modification times.
+            no_check: Do not check for updated tarball. Just
+                return name.
             verbose: If True, print messages to stdout.
                 (Default: Be silent)
 
         Outputs:
-            None
+            Name with full path of zaplist tarball.
     """
     import config.processing
+    import config.searching
     import CornellFTP
     import tarfile
-    cftp = CornellFTP.CornellFTP()
+
+    if config.searching.use_radar_clipping:
+        zaptar_basename = "zaplists_noradar.tar.gz"
+    else:
+        zaptar_basename = "zaplists.tar.gz"
     
-    zaptarfile = os.path.join(config.processing.zaplistdir, "zaplists.tar.gz")
-    ftpzappath = "/zaplists/zaplists.tar.gz"
+    zaptarfile = os.path.join(config.processing.zaplistdir, zaptar_basename)
+
+    if no_check:
+        return zaptarfile
+
+    cftp = CornellFTP.CornellFTP()
+
+    ftpzappath = "/zaplists/" + zaptar_basename
     getzap = False
     if force_download:
         if verbose:
             print "Forcing download of zaplist tarball"
         getzap = True
-    if not os.path.exists(zaptarfile):
+    elif not os.path.exists(zaptarfile):
         if verbose:
             print "Zaplist tarball doesn't exist, will download"
         getzap = True
-    if cftp.get_modtime(ftpzappath) > get_modtime(zaptarfile):
+    elif cftp.get_modtime(ftpzappath) > get_modtime(zaptarfile):
         if verbose:
             print "Zaplist on FTP server is newer than local copy, will download"
         getzap = True
@@ -246,6 +259,8 @@ def get_zaplist_tarball(force_download=False, verbose=False):
     cftp.close()
 
     if getzap:
+        list_fn = zaptar_basename.replace('.tar.gz','.list')
+        temp_list_fn = zaptar_basename.replace('.tar.gz','_dl.list')
         zaplistdir = config.processing.zaplistdir
 
         temp_zaplistfn = os.path.join(zaplistdir,'zaplists_dl.tar.gz')
@@ -259,7 +274,7 @@ def get_zaplist_tarball(force_download=False, verbose=False):
         names = zaptar.getnames()
 
         zaplistf = open(os.path.join(zaplistdir, \
-                'zaplist_tarball_dl.list'),'w')
+                        temp_list_fn),'w')
         for name in names:
             zaplistf.write(name+'\n')
         
@@ -267,12 +282,14 @@ def get_zaplist_tarball(force_download=False, verbose=False):
         zaptar.close()
 
         os.rename(temp_zaplistfn, zaptarfile)
-        os.rename(os.path.join(zaplistdir,'zaplist_tarball_dl.list'), \
-                  os.path.join(zaplistdir,'zaplist_tarball.list')) 
+        os.rename(os.path.join(zaplistdir,temp_list_fn), \
+                  os.path.join(zaplistdir,list_fn)) 
         
     else:
         # Do nothing
         pass
+
+    return zaptarfile
 
 def find_zaplist_in_tarball(filename, verbose=False):
     """Find the name of the zaplist for a given raw data filename.
@@ -294,8 +311,11 @@ def find_zaplist_in_tarball(filename, verbose=False):
         parsed['date'] = "%04d%02d%02d" % \
                             astro_utils.calendar.MJD_to_date(int(parsed['mjd']))
 
+    zaplist_tarball_fn = get_zaplist_tarball(no_check=True)
+
     if verbose:
-        print "Looking for zaplist for %s in %s..." % (filename, 'zaplists.tar.gz')
+        print "Looking for zaplist for %s in %s..." % \
+               ( filename, os.basename(zaplist_tarball_fn) )
 
     customzapfns = []
     # First, try to find a custom zaplist for this specific data file
@@ -308,8 +328,7 @@ def find_zaplist_in_tarball(filename, verbose=False):
     # Try to find custom zaplist for this MJD
     customzapfns.append("%s.%s.all.zaplist" % (parsed['projid'], parsed['date']))
 
-    zaplistf = open(os.path.join(config.processing.zaplistdir,\
-                    'zaplist_tarball.list'),'r')
+    zaplistf = open(zaplist_tarball_fn.replace('.tar.gz','.list'),'r')
     names = zaplistf.readlines()
     zaplistf.close()
 

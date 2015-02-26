@@ -602,6 +602,41 @@ class PercentZappedTotal(FloatDiagnostic):
                         (1.0/params['sifting_short_period'] - \
                         1.0/params['sifting_long_period'])*100
 
+class RadarSamplesUsed(PlotDiagnostic):
+    name = "Radar samples used"
+    description = "The list of radar time samples clipped from the " \
+                    "time series before searching this beam. (A text file)."
+
+    def get_diagnostic(self):
+        # find the *_radar_samples.txt file
+        samp_files = glob.glob(os.path.join(self.directory, '*_radar_samples.txt'))
+
+        if len(samp_files) != 1:
+            raise DiagnosticError("Wrong number of radar sample files found (%d)!" % \
+                                len(samp_files))
+        else:
+            self.value = os.path.split(samp_files[0])[-1]
+            self.datalen = os.path.getsize(samp_files[0])
+            samp_file = open(samp_files[0], 'rb')
+            self.filedata = samp_file.read()
+            samp_file.close()
+
+class PercentRadarClipped(FloatDiagnostic):
+    name = "Percent radar samples removed"
+    description = "The percentage of the time series that is clipped by the radar removal."
+
+    clippcnt_re = re.compile(r"Number of data samples to remove:.*\((?P<masked>.*) %\)")
+
+    def get_diagnostic(self):
+        radar_fns = glob.glob(os.path.join(self.directory, '*_radar_samples.txt'))
+        radarfile = open(radar_fns[0])
+
+        for line in radarfile:
+            m = self.clippcnt_re.search(line)
+            if m:
+                self.value = float(m.groupdict()['masked'])
+                break
+        radarfile.close()
 
 class SearchParameters(PlotDiagnostic):
     name = "Search parameters"
@@ -806,7 +841,9 @@ DIAGNOSTIC_TYPES = [RFIPercentageDiagnostic,
                     PercentZappedBelow10Hz,
                     PercentZappedBelow1Hz,
                     CalRemovalSummary,
-                    NumCalRowsRemoved
+                    NumCalRowsRemoved,
+                    RadarSamplesUsed,
+                    PercentRadarClipped
                    ]
 
 

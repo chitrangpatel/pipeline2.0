@@ -558,6 +558,13 @@ def search_job(job):
     # Use whatever .zaplist is found in the current directory
     zaplist = glob.glob("*.zaplist")[0]
     print "Using %s as zaplist" % zaplist
+
+    # Use whatever *_radar_samples.txt is found in the current directory
+    if config.searching.use_radar_clipping:
+        radar_list = glob.glob("*_radar_samples.txt")[0]
+        os.putenv('CLIPBINSFILE',os.path.join(job.workdir,radar_list))
+        print "Using %s as radar samples list" % radar_list
+
     if config.searching.use_subbands and config.searching.fold_rawdata:
         # make a directory to keep subbands so they can be used to fold later
         try:
@@ -949,7 +956,7 @@ def clean_up(job):
     resultglobs = ["*rfifind.[bimors]*", "*.tgz", "*.png", \
                     "*.zaplist", "search_params.txt", "*.accelcands*", \
                     "*_merge.out", "candidate_attributes.txt", "groups.txt.gz", \
-                    "*_calrows.txt","spsummary.txt"]
+                    "*_calrows.txt","spsummary.txt","*_radar_samples.txt"]
     
     # Print some info useful for debugging
     print "Contents of workdir (%s) before copy: " % job.workdir
