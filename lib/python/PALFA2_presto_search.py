@@ -465,6 +465,10 @@ def main(filenms, workdir, resultsdir):
         zaplist = glob.glob(os.path.join(job.outputdir,'*.zaplist'))[0]
         shutil.copy(zaplist,zerodm_job.workdir)
 
+        # copy radar samples list from non-zerodm job to zerodm job workdir
+        radar_list = glob.glob(os.path.join(job.outputdir,"*_radar_samples.txt"))[0]
+        shutil.copy(radar_list,zerodm_job.workdir)
+
         # copy raw data file to zerodm workdir
         for fn in filenms:
             shutil.copy(fn,zerodm_job.workdir)

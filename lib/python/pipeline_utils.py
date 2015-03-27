@@ -315,7 +315,7 @@ def find_zaplist_in_tarball(filename, verbose=False):
 
     if verbose:
         print "Looking for zaplist for %s in %s..." % \
-               ( filename, os.basename(zaplist_tarball_fn) )
+               ( filename, os.path.basename(zaplist_tarball_fn) )
 
     customzapfns = []
     # First, try to find a custom zaplist for this specific data file
