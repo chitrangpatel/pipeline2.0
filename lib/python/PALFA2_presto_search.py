@@ -733,7 +733,7 @@ def search_job(job):
                basedmb+"[3-9][0-9][0-9].[0-9][0-9]"+basedme +
                basedmb+"1[0-9][0-9][0-9].[0-9][0-9]"+basedme,
                basedmb+"[1-9][0-9][0-9][0-9].[0-9][0-9]"+basedme]
-    dmrangestrs = ["0-110", "100-310", "300-1000+","1000-10000"]
+    dmrangestrs = ["0-110", "100-310", "300-2000","1000-10000"]
     psname = job.basefilenm+"_singlepulse.ps"
 
     for dmglob, dmrangestr in zip(dmglobs, dmrangestrs):

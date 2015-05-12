@@ -420,11 +420,17 @@ class SinglePulseBeamPlotDMs100_310(SinglePulseBeamPlot):
     sp_plot_type = "PRESTO singlepulse per-beam plot (DMs 100 to 310)"
 
 
-class SinglePulseBeamPlotDMs300AndUp(SinglePulseBeamPlot):
+class SinglePulseBeamPlotDMs300_2000(SinglePulseBeamPlot):
     """A class to represent a PRESTO per-beam singlepulse plot for
         DMs 300 and up.
     """
-    sp_plot_type = "PRESTO singlepulse per-beam plot (DMs 300 and up)"
+    sp_plot_type = "PRESTO singlepulse per-beam plot (DMs 300 to 2000)"
+
+class SinglePulseBeamPlotDMs1000_10000(SinglePulseBeamPlot):
+    """A class to represent a PRESTO per-beam singlepulse plot for
+        DMs 1000 to 10000.
+    """
+    sp_plot_type = "PRESTO singlepulse per-beam plot (DMs 1000 to 10000)"
 
 class SinglePulseCandidate(upload.Uploadable,upload.FTPable):
     """A class to represent a PALFA single pulse candidate.
@@ -974,12 +980,19 @@ def get_spcandidates(versionnum, directory, header_id=None, timestamp_mjd=None):
     sp_cands.append(SinglePulseBeamPlotDMs100_310(fns[0], versionnum, \
                         header_id=header_id))
 
-    fns = glob.glob(os.path.join(directory, "*DMs300-1000+_singlepulse.png"))
+    fns = glob.glob(os.path.join(directory, "*DMs300-2000_singlepulse.png"))
     if len(fns) != 1:
-        raise SinglePulseCandidateError("Wrong number of *DMs300-1000_singlepulse.png " \
+        raise SinglePulseCandidateError("Wrong number of *DMs300-2000_singlepulse.png " \
                                         "plots found (%d)!" % len(fns))
-    sp_cands.append(SinglePulseBeamPlotDMs300AndUp(fns[0], versionnum, \
+    sp_cands.append(SinglePulseBeamPlotDMs300_2000(fns[0], versionnum, \
                         header_id=header_id))
+    fns = glob.glob(os.path.join(directory, "*DMs1000-10000_singlepulse.png"))
+    if len(fns) != 1:
+        raise SinglePulseCandidateError("Wrong number of *DMs1000-10000_singlepulse.png " \
+                                        "plots found (%d)!" % len(fns))
+    sp_cands.append(SinglePulseBeamPlotDMs1000_10000(fns[0], versionnum, \
+                        header_id=header_id))
+
     
     # Gather per-beam SP tarballs to upload
     fns = glob.glob(os.path.join(directory, "*_inf.tgz"))
