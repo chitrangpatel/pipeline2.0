@@ -706,6 +706,162 @@ class SinglePulseCandidatePNG(SinglePulseCandidatePlot):
     """
     plot_type = "spd plot"
 
+class SinglePulseCandidateRating(upload.Uploadable):
+    """A class to represent ratings for a PALFA single-pulse candidate.
+    """
+    # A dictionary which contains variables to compare (as keys) and
+    # how to compare them (as values)
+    to_cmp = {'cand_id': '%d', \
+              'value': '%.12g', \
+              'version': '%d', \
+              'name': '%s'}
+
+    def __init__(self, ratvals, inst_cache=None, cand_id=None):
+        self.cand_id = cand_id
+        self.ratvals = ratvals # A list of RatingValue objects
+
+        if inst_cache is None:
+            inst_cache = ratings2.utils.RatingInstanceIDCache(dbname='default')
+        self.inst_cache = inst_cache
+
+    def upload(self, dbname, *args, **kwargs):
+        """An extension to the inherited 'upload' method.
+
+            Input:
+                dbname: Name of the database to connect to, or a database
+                        connection to use (Defaut: 'default').
+        """
+
+        if self.cand_id is None:
+            raise SinglePulseCandidateError("Cannot upload rating if " \
+                    "sp_cand_id is None!")
+
+        if debug.UPLOAD: 
+            starttime = time.time()
+
+        dbname.execute(self.get_upload_sproc_call())
+        self.compare_with_db(dbname=dbname)
+        
+        if debug.UPLOAD:
+            upload.upload_timing_summary["SP ratings"] = \
+                upload.upload_timing_summary.setdefault("SP ratings", 0) + \
+                (time.time()-starttime)
+
+    def get_upload_sproc_call(self):
+        """Return the SQL command to upload this candidate rating 
+            to the PALFA common DB.
+        """
+
+        query = "INSERT INTO sp_rating " + \
+                "(value, sp_rating_instance_id, sp_cand_id, date) "
+        to_remove = []
+
+        for ratval in self.ratvals:
+
+            if not ratval.value is None and np.abs(ratval.value) < 1e-307:
+               ratval.value = 0.0
+
+            if not ratval.value is None and np.isinf(ratval.value):
+               ratval.value = 9999.0
+
+            value = ratval.value
+            try:
+                instance_id = self.inst_cache.get_sp_id(ratval.name, \
+                                     ratval.version, ratval.description)
+            except ratings2.utils.RatingDepreciatedError, e:
+                # old version of a rating, don't upload it
+                to_remove.append(ratval)
+                continue
+            
+            if value is None or np.isnan(value):
+                query += "SELECT NULL, %d, %d, GETDATE() UNION ALL " % \
+                         (instance_id, \
+                          self.cand_id)
+            else:
+                query += "SELECT '%.12g', %d, %d, GETDATE() UNION ALL " % \
+                        (value, \
+                         instance_id, \
+                         self.cand_id)
+
+        for ratval in to_remove:
+            self.ratvals.remove(ratval)
+        query = query.rstrip('UNION ALL') # remove trailing 'UNION ALL' from query
+        return query
+
+    def compare_with_db(self, dbname='default'):
+        """Grab the rating information from the DB and compare values.
+            Raise a SinglePulseCandidateError if any mismatch is found.
+            
+            Input:
+                dbname: Name of database to connect to, or a database
+                        connection to use (Defaut: 'default').
+            Output:
+                None
+        """
+        if isinstance(dbname, database.Database):
+            db = dbname
+        else:
+            db = database.Database(dbname)
+
+        cmp_select = "SELECT r.sp_cand_id AS cand_id, " \
+                        "r.value AS value, " \
+                        "rt.name AS name, " \
+                        "ri.version AS version " \
+                   "FROM sp_rating AS r " \
+                   "LEFT JOIN sp_rating_instance AS ri " \
+                        "ON ri.sp_rating_instance_id=r.sp_rating_instance_id " \
+                   "LEFT JOIN sp_rating_type AS rt " \
+                        "ON ri.sp_rating_type_id=rt.sp_rating_type_id " \
+                   "WHERE r.sp_cand_id=%d AND r.sp_rating_instance_id=%d "
+        query = ""
+
+        for ratval in self.ratvals:
+            instance_id = self.inst_cache.get_sp_id(ratval.name, \
+                                     ratval.version, ratval.description)
+            query += cmp_select % (self.cand_id, instance_id) + "UNION ALL "
+
+
+        query = query.rstrip('UNION ALL') # remove trailing 'UNION ALL' from query
+        db.execute(query)
+        rows = db.cursor.fetchall()
+        if type(dbname) == types.StringType:
+            db.close()
+        if not rows:
+            # No matching entry in common DB
+            raise ValueError("No matching entries for ratings in common DB!\n" \
+                                "(sp_cand_id: %d)" % \
+                                (self.cand_id))
+        elif len(rows) != len(self.ratvals):
+            # Too many matching entries!
+            raise ValueError("Wrong number of matching entries in common DB! " \
+                                "%d != %d\n" \
+                                "(sp_cand_id: %d)" % \
+                                (len(rows),len(self.ratvals),self.cand_id))
+        else:
+            desc = [d[0] for d in db.cursor.description]
+            for i,ratval in enumerate(self.ratvals):
+                r = dict(zip(desc, rows[i]))
+                ratval.cand_id = self.cand_id
+                errormsgs = []
+                for var, fmt in self.to_cmp.iteritems():
+		    if r[var] is None:
+			if not ( getattr(ratval,var) is None or \
+				 np.isnan(getattr(ratval, var)) ):
+			    errormsgs.append("Values for '%s' don't match (local: %s, DB: NULL)" % \
+						(var, str(getattr(ratval,var))))
+		    else: 
+			local = (fmt % getattr(ratval, var)).lower()
+			fromdb = (fmt % r[var]).lower()
+			if local != fromdb:
+			    errormsgs.append("Values for '%s' don't match (local: %s, DB: %s)" % \
+						(var, local, fromdb))
+            if errormsgs:
+                errormsg = "SP candidate rating doesn't match what was " \
+                            "uploaded to the DB:"
+                for msg in errormsgs:
+                    errormsg += '\n    %s' % msg
+                raise SinglePulseCandidateError(errormsg)
+
 class SinglePulseCandidateBinary(upload.FTPable,upload.Uploadable):
     """A class to represent a single pulse candidate binary that
        needs to be FTPed to Cornell.
@@ -886,7 +1042,7 @@ class SPDTarball(upload.FTPable):
         except IOError:
             if os.path.isdir(self.tempdir):
                 shutil.rmtree(self.tempdir)
-            raise PeriodicityCandidateError("Error while extracting spd files " \
+            raise SinglePulseCandidateError("Error while extracting spd files " \
                                             "from tarball (%s)!" % tarfn)
         finally:
             tar.close()
@@ -918,7 +1074,7 @@ class SinglePulseCandidateError(upload.UploadNonFatalError):
     pass
 
 
-def get_spcandidates(versionnum, directory, header_id=None, timestamp_mjd=None):
+def get_spcandidates(versionnum, directory, header_id=None, timestamp_mjd=None, inst_cache=None):
     """Return single pulse candidates to common DB.
 
         Inputs:
@@ -927,9 +1083,13 @@ def get_spcandidates(versionnum, directory, header_id=None, timestamp_mjd=None):
             directory: The directory containing results from the pipeline.
             header_id: header_id number for this beam, as returned by
                         spHeaderLoader/header.upload_header
+            timestamp_mjd: mjd timestamp for this observation (default=None).
+            inst_cache: ratings2 RatingInstanceIDCache instance.
 
         Ouputs:
             sp_cands: List of single pulse candidates, plots and tarballs.
+            tempdir: Path of temporary directory that SPDs have been untarred,
+                     returned so that it can be deleted after successful SPD upload.
     """
     sp_cands = []
 
@@ -946,7 +1106,17 @@ def get_spcandidates(versionnum, directory, header_id=None, timestamp_mjd=None):
     spd_tarball = SPDTarball(spd_tarfns[0],remote_spd_base,tempdir)
     spd_tempdir, spd_list = spd_tarball.extract()
 
-    # extract ratings # TODO 
+    # extract ratings tarball 
+    tar = tarfile.open(rating_tarfns[0])
+    try:
+        tar.extractall(path=tempdir)
+    except IOError:
+        if os.path.isdir(tempdir):
+            shutil.rmtree(tempdir)
+        raise SinglePulseCandidateError("Error while extracting pfd files " \
+                                        "from tarball (%s)!" % tarfn)
+    finally:
+        tar.close()
 
     # Gather SP candidates and their rating and plots
     sp_cands.append(spd_tarball)

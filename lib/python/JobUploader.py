@@ -126,8 +126,9 @@ def upload_results(job_submit):
                                                    timestamp_mjd=data.timestamp_mjd, \
                                                    inst_cache=rat_inst_id_cache)
         print "\tPeriodicity candidates parsed."
-        sp_cands = sp_candidates.get_spcandidates(version_number, dir, \
-                                                  timestamp_mjd=data.timestamp_mjd)
+        sp_cands, tempdir_sp = sp_candidates.get_spcandidates(version_number, dir, \
+                                                              timestamp_mjd=data.timestamp_mjd, \
+                                                              inst_cache=rat_inst_id_cache)
         print "\tSingle pulse candidates parsed."
 
         for c in (cands + sp_cands):
@@ -237,6 +238,8 @@ def upload_results(job_submit):
 
         # remove temporary dir for PFDs
         shutil.rmtree(tempdir)
+        # remove temporary dir for SPDs
+        shutil.rmtree(tempdir_sp)
 
         if attempts >= 5:
             errmsg = "FTP upload failed after %d connection failures!\n" % attempts
