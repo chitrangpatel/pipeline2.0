@@ -748,11 +748,16 @@ def search_job(job):
             os.rename(psname,
                     job.basefilenm+"_DMs%s_singlepulse.ps" % dmrangestr)
 
-    # Do singlepulse grouping analysis (Chen Karako's code)
+    # Do singlepulse grouping (Chen Karako's code) and waterfalling (Chitrang Patel's code) analysis
     if config.searching.sp_grouping and job.masked_fraction < 0.2:
         job.sp_grouping_time = time.time()
         import analyse_sp_palfa
         analyse_sp_palfa.main()
+
+        cmd = "sp_pipeline.py --infile %s --groupsfile groups.txt --mask %s" % \
+              (maskfilenm.replace(".mask",".inf"), maskfilenm)
+        timed_execute(cmd)
+
         timed_execute("gzip groups.txt")
         job.sp_grouping_time = time.time() - job.sp_grouping_time
 
@@ -934,7 +939,8 @@ def clean_up(job):
                     "_inf.tgz",
                     "_pfd.tgz",
                     "_bestprof.tgz",
-                    "_pfd_rat.tgz"]
+                    "_pfd_rat.tgz",
+                    "_spd.tgz"]
     tar_globs = ["*_ACCEL_%d"%config.searching.lo_accel_zmax,
                  "*_ACCEL_%d"%config.searching.hi_accel_zmax,
                  "*_ACCEL_%d.cand"%config.searching.lo_accel_zmax,
@@ -943,7 +949,9 @@ def clean_up(job):
                  "*_DM[0-9]*.inf",
                  "*.pfd",
                  "*.pfd.bestprof",
-                 "*.pfd.rat"]
+                 "*.pfd.rat",
+                 "*.spd"]
+
     print "Tarring up results"
     for (tar_suffix, tar_glob) in zip(tar_suffixes, tar_globs):
         print "Opening tarball %s" % (job.basefilenm+tar_suffix)
