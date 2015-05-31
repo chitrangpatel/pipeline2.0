@@ -754,8 +754,8 @@ def search_job(job):
         import analyse_sp_palfa
         analyse_sp_palfa.main()
 
-        cmd = "sp_pipeline.py --infile %s --groupsfile groups.txt --mask %s" % \
-              (maskfilenm.replace(".mask",".inf"), maskfilenm)
+        cmd = "sp_pipeline.py --infile %s --groupsfile groups.txt --mask %s %s *.singlepulse" % \
+              (maskfilenm.replace(".mask",".inf"), maskfilenm, job.filenmstr)
         timed_execute(cmd)
 
         timed_execute("gzip groups.txt")
