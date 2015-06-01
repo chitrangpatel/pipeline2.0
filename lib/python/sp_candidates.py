@@ -24,6 +24,8 @@ import CornellFTP
 import database
 import upload
 import pipeline_utils
+import sp_utils
+import ratings2
 
 import config.basic
 import config.upload
@@ -460,7 +462,7 @@ class SinglePulseCandidate(upload.Uploadable,upload.FTPable):
                                  # ordered by decreasing sigma (where largest
                                  # sigma has cand_num=1).
         self.time = spd.pulse_peak_time # Time in timeseries of pulse
-        self.dm = spd.bestdm # Dispersion measure
+        self.dm = spd.best_dm # Dispersion measure
         self.delta_dm = np.max(spd.dmVt_this_dms) - np.min(spd.dmVt_this_dms) # DM span of group
         self.width = spd.pulsewidth_seconds # width of boxcar that discovered event
         self.snr = spd.sigma # signal-to-noise ratio, singlepulse sigma of peak event in group
@@ -517,7 +519,7 @@ class SinglePulseCandidate(upload.Uploadable,upload.FTPable):
                dep.upload_FTP(cftp,dbname=dbname)
 
     def get_upload_sproc_call(self):
-        """Return the EXEC spPDMCandUploaderFindsVersion string to upload
+        """Return the EXEC spSPCandUploaderFindsVersion string to upload
             this candidate to the PALFA common DB.
         """
         sprocstr = "EXEC spSPCandUploaderFindsVersion " + \
@@ -603,7 +605,7 @@ class SinglePulseCandidatePlot(upload.Uploadable):
     """
     # A dictionary which contains variables to compare (as keys) and
     # how to compare them (as values)
-    to_cmp = {'cand_id': '%d', \
+    to_cmp = {'sp_cand_id': '%d', \
               'plot_type': '%s', \
               'filename': '%s', \
               'datalen': '%d'}
@@ -638,10 +640,10 @@ class SinglePulseCandidatePlot(upload.Uploadable):
                 (time.time()-starttime)
 
     def get_upload_sproc_call(self):
-        """Return the EXEC spPDMCandPlotUploader string to upload
+        """Return the EXEC spSPCandPlotUploader string to upload
             this candidate plot to the PALFA common DB.
         """
-        sprocstr = "EXEC spPDMCandPlotLoader " + \
+        sprocstr = "EXEC spSPCandPlotLoader " + \
             "@sp_cand_id=%d, " % self.sp_cand_id + \
             "@sp_plot_type='%s', " % self.plot_type + \
             "@filename='%s', " % os.path.split(self.filename)[-1] + \
@@ -670,7 +672,7 @@ class SinglePulseCandidatePlot(upload.Uploadable):
                    "LEFT JOIN sp_plot_types AS pltype " \
                         "ON plt.sp_plot_type_id=pltype.sp_plot_type_id " \
                    "WHERE plt.sp_cand_id=%d AND pltype.sp_plot_type='%s' " % \
-                        (self.cand_id, self.plot_type))
+                        (self.sp_cand_id, self.plot_type))
         rows = db.cursor.fetchall()
         if type(dbname) == types.StringType:
             db.close()
@@ -678,12 +680,12 @@ class SinglePulseCandidatePlot(upload.Uploadable):
             # No matching entry in common DB
             raise ValueError("No matching entry in common DB!\n" \
                                 "(sp_cand_id: %d, sp_plot_type: %s)" % \
-                                (self.cand_id, self.plot_type))
+                                (self.sp_cand_id, self.plot_type))
         elif len(rows) > 1:
             # Too many matching entries!
             raise ValueError("Too many matching entries in common DB!\n" \
                                 "(sp_cand_id: %d, sp_plot_type: %s)" % \
-                                (self.cand_id, self.plot_type))
+                                (self.sp_cand_id, self.plot_type))
         else:
             desc = [d[0] for d in db.cursor.description]
             r = dict(zip(desc, rows[0]))
@@ -716,8 +718,8 @@ class SinglePulseCandidateRating(upload.Uploadable):
               'version': '%d', \
               'name': '%s'}
 
-    def __init__(self, ratvals, inst_cache=None, cand_id=None):
-        self.cand_id = cand_id
+    def __init__(self, ratvals, inst_cache=None, sp_cand_id=None):
+        self.sp_cand_id = sp_cand_id
         self.ratvals = ratvals # A list of RatingValue objects
 
         if inst_cache is None:
@@ -732,7 +734,7 @@ class SinglePulseCandidateRating(upload.Uploadable):
                         connection to use (Defaut: 'default').
         """
 
-        if self.cand_id is None:
+        if self.sp_cand_id is None:
             raise SinglePulseCandidateError("Cannot upload rating if " \
                     "sp_cand_id is None!")
 
@@ -776,12 +778,12 @@ class SinglePulseCandidateRating(upload.Uploadable):
             if value is None or np.isnan(value):
                 query += "SELECT NULL, %d, %d, GETDATE() UNION ALL " % \
                          (instance_id, \
-                          self.cand_id)
+                          self.sp_cand_id)
             else:
                 query += "SELECT '%.12g', %d, %d, GETDATE() UNION ALL " % \
                         (value, \
                          instance_id, \
-                         self.cand_id)
+                         self.sp_cand_id)
 
         for ratval in to_remove:
             self.ratvals.remove(ratval)
@@ -818,7 +820,7 @@ class SinglePulseCandidateRating(upload.Uploadable):
         for ratval in self.ratvals:
             instance_id = self.inst_cache.get_sp_id(ratval.name, \
                                      ratval.version, ratval.description)
-            query += cmp_select % (self.cand_id, instance_id) + "UNION ALL "
+            query += cmp_select % (self.sp_cand_id, instance_id) + "UNION ALL "
 
 
         query = query.rstrip('UNION ALL') # remove trailing 'UNION ALL' from query
@@ -830,18 +832,18 @@ class SinglePulseCandidateRating(upload.Uploadable):
             # No matching entry in common DB
             raise ValueError("No matching entries for ratings in common DB!\n" \
                                 "(sp_cand_id: %d)" % \
-                                (self.cand_id))
+                                (self.sp_cand_id))
         elif len(rows) != len(self.ratvals):
             # Too many matching entries!
             raise ValueError("Wrong number of matching entries in common DB! " \
                                 "%d != %d\n" \
                                 "(sp_cand_id: %d)" % \
-                                (len(rows),len(self.ratvals),self.cand_id))
+                                (len(rows),len(self.ratvals),self.sp_cand_id))
         else:
             desc = [d[0] for d in db.cursor.description]
             for i,ratval in enumerate(self.ratvals):
                 r = dict(zip(desc, rows[i]))
-                ratval.cand_id = self.cand_id
+                ratval.cand_id = self.sp_cand_id
                 errormsgs = []
                 for var, fmt in self.to_cmp.iteritems():
 		    if r[var] is None:
@@ -873,7 +875,7 @@ class SinglePulseCandidateBinary(upload.FTPable,upload.Uploadable):
               'filename': '%s'}
     
     def __init__(self, filename, filesize, sp_cand_id=None, remote_spd_dir=None):
-        self.sp_cand_id = cand_id
+        self.sp_cand_id = sp_cand_id
         self.fullpath = filename 
         self.filename = os.path.split(filename)[-1]
         self.filesize = filesize
@@ -886,7 +888,7 @@ class SinglePulseCandidateBinary(upload.FTPable,upload.Uploadable):
         """Return the EXEC spPFDBLAH string to upload
             this binary's info to the PALFA common DB.
         """
-        sprocstr = "EXEC spPDMCandBinFSLoader " + \
+        sprocstr = "EXEC spSPCandBinFSLoader " + \
             "@sp_cand_id=%d, " % self.sp_cand_id + \
             "@sp_plot_type='%s', " % self.filetype + \
             "@filename='%s', " % self.filename + \
@@ -1098,16 +1100,18 @@ def get_spcandidates(versionnum, directory, header_id=None, timestamp_mjd=None, 
 
     mjd = int(timestamp_mjd)
     remote_spd_base = os.path.join(config.upload.spd_ftp_dir,str(mjd)) 
-    remote_spd_dir = os.path.join(remote_spd_base,\
-                                  os.path.basename(spd_tarfns[0]).rstrip('_spd.tgz'))
 
     # extract spd tarball
     spd_tarfns = glob.glob(os.path.join(directory, "*_spd.tgz"))
     spd_tarball = SPDTarball(spd_tarfns[0],remote_spd_base,tempdir)
     spd_tempdir, spd_list = spd_tarball.extract()
 
+    remote_spd_dir = os.path.join(remote_spd_base,\
+                                  os.path.basename(spd_tarfns[0]).rstrip('_spd.tgz'))
+
     # extract ratings tarball 
-    tar = tarfile.open(rating_tarfns[0])
+    rating_tarfn = spd_tarfns[0].replace("_spd","_spd_rat")
+    tar = tarfile.open(rating_tarfn)
     try:
         tar.extractall(path=tempdir)
     except IOError:
@@ -1122,8 +1126,10 @@ def get_spcandidates(versionnum, directory, header_id=None, timestamp_mjd=None, 
     sp_cands.append(spd_tarball)
     for ii,spd_elem in enumerate(spd_list):
         spdfn, spd_size = spd_elem[0], spd_elem[1]
-        pngfn = spdfn.replace(".spd",".spd.png")
-        ratfn = spdfn.replace(".spd",".spd.rat")
+        pngfn = os.path.join(directory, \
+                os.path.basename(spdfn.replace(".spd",".spd.png")))
+        ratfn = os.path.join(tempdir, \
+                os.path.basename(spdfn.replace(".spd",".spd.rat")))
 
         spd = sp_utils.spd(spdfn)
         cand = SinglePulseCandidate(ii+1, spd, versionnum, header_id=header_id)
