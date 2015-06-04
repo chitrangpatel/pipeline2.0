@@ -551,6 +551,249 @@ def set_up_job(filenms, workdir, resultsdir,zerodm=False):
 
     return job
 
+def periodicity_search_pass(job,dmstrs):
+    """ For a single pass in the dedispersion plan, 
+        FFT and run accelsearch on a batch of timeseries
+        in a job given a string list of DMs in pass.
+    """
+    for dmstr in dmstrs:
+        basenm = os.path.join(job.tempdir, job.basefilenm+"_DM"+dmstr)
+
+        datnm = basenm+".dat"
+        fftnm = basenm+".fft"
+        infnm = basenm+".inf"
+
+        # FFT, zap, and de-redden
+        cmd = "realfft %s"%datnm
+        job.FFT_time += timed_execute(cmd)
+        cmd = "zapbirds -zap -zapfile %s -baryv %.6g %s"%\
+              (job.zaplist, job.baryv, fftnm)
+        job.FFT_time += timed_execute(cmd)
+        cmd = "rednoise %s"%fftnm
+        job.FFT_time += timed_execute(cmd)
+        try:
+            os.rename(basenm+"_red.fft", fftnm)
+        except: pass
+        
+        # Do the low-acceleration search
+        cmd = "accelsearch -inmem -numharm %d -sigma %f " \
+                "-zmax %d -flo %f %s"%\
+                (config.searching.lo_accel_numharm, \
+                 config.searching.lo_accel_sigma, \
+                 config.searching.lo_accel_zmax, \
+                 config.searching.lo_accel_flo, fftnm)
+        job.lo_accelsearch_time += timed_execute(cmd)
+        try:
+            os.remove(basenm+"_ACCEL_%d.txtcand" % config.searching.lo_accel_zmax)
+        except: pass
+        try:  # This prevents errors if there are no cand files to copy
+            shutil.move(basenm+"_ACCEL_%d.cand" % config.searching.lo_accel_zmax, \
+                            job.workdir)
+            shutil.move(basenm+"_ACCEL_%d" % config.searching.lo_accel_zmax, \
+                            job.workdir)
+        except: pass
+    
+        # Do the high-acceleration search (only for non-zerodm case)
+        if not job.zerodm:
+            cmd = "accelsearch -inmem -numharm %d -sigma %f " \
+                    "-zmax %d -flo %f %s"%\
+                    (config.searching.hi_accel_numharm, \
+                     config.searching.hi_accel_sigma, \
+                     config.searching.hi_accel_zmax, \
+                     config.searching.hi_accel_flo, fftnm)
+            job.hi_accelsearch_time += timed_execute(cmd)
+            try:
+                os.remove(basenm+"_ACCEL_%d.txtcand" % config.searching.hi_accel_zmax)
+            except: pass
+            try:  # This prevents errors if there are no cand files to copy
+                shutil.move(basenm+"_ACCEL_%d.cand" % config.searching.hi_accel_zmax, \
+                                job.workdir)
+                shutil.move(basenm+"_ACCEL_%d" % config.searching.hi_accel_zmax, \
+                                job.workdir)
+            except: pass
+
+        # Remove the .fft files
+        try:
+            os.remove(fftnm)
+        except: pass
+
+def singlepulse_search_pass(job,dmstrs):
+    """ For a single pass in the dedispersion plan, 
+        run single_pulse_search.py on a batch of timeseries
+        in a job given a string list of DMs in pass.
+    """
+
+    basenms_forpass = []
+    for dmstr in dmstrs:
+        basenm = os.path.join(job.tempdir, job.basefilenm+"_DM"+dmstr)
+        basenms_forpass.append(basenm)
+
+    # Do the single-pulse search
+    dats_str = '.dat '.join(basenms_forpass) + '.dat'
+    if job.zerodm:
+        cmd = "single_pulse_search.py -b -p -m %f -t %f %s"%\
+              (config.searching.singlepulse_maxwidth, \
+               config.searching.singlepulse_threshold, dats_str)
+    else:
+        cmd = "single_pulse_search.py -p -m %f -t %f %s"%\
+              (config.searching.singlepulse_maxwidth, \
+               config.searching.singlepulse_threshold, dats_str)
+    job.singlepulse_time += timed_execute(cmd)
+
+    # Move .singlepulse and .inf files and delete .dat files
+    for basenm in basenms_forpass:
+        try:
+            shutil.move(basenm+".singlepulse", job.workdir)
+            shutil.move(basenm+".inf", job.workdir)
+            os.remove(basenm+".dat")
+        except: pass
+
+def sift_periodicity(job,dmstrs):
+    # Sift through the candidates to choose the best to fold
+    job.sifting_time = time.time()
+
+    lo_accel_cands = sifting.read_candidates(glob.glob("*ACCEL_%d" % config.searching.lo_accel_zmax), track=True)
+    if len(lo_accel_cands):
+        lo_accel_cands = sifting.remove_duplicate_candidates(lo_accel_cands)
+    if len(lo_accel_cands):
+        lo_accel_cands = sifting.remove_DM_problems(lo_accel_cands, config.searching.numhits_to_fold,
+                                                    dmstrs, config.searching.low_DM_cutoff)
+
+    hi_accel_cands = sifting.read_candidates(glob.glob("*ACCEL_%d" % config.searching.hi_accel_zmax), track=True)
+    if len(hi_accel_cands):
+        hi_accel_cands = sifting.remove_duplicate_candidates(hi_accel_cands)
+    if len(hi_accel_cands):
+        hi_accel_cands = sifting.remove_DM_problems(hi_accel_cands, config.searching.numhits_to_fold,
+                                                    dmstrs, config.searching.low_DM_cutoff)
+
+    all_accel_cands = lo_accel_cands + hi_accel_cands
+    if len(all_accel_cands):
+        all_accel_cands = sifting.remove_harmonics(all_accel_cands)
+        # Note:  the candidates will be sorted in _sigma_ order, not _SNR_!
+        all_accel_cands.sort(sifting.cmp_sigma)
+        print "Sending candlist to stdout before writing to file"
+        sifting.write_candlist(all_accel_cands)
+        sys.stdout.flush()
+        sifting.write_candlist(all_accel_cands, job.basefilenm+".accelcands")
+        # Make sifting summary plots
+        all_accel_cands.plot_rejects()
+        plt.title("%s Rejected Cands" % job.basefilenm)
+        plt.savefig(job.basefilenm+".accelcands.rejects.png")
+        all_accel_cands.plot_summary()
+        plt.title("%s Periodicity Summary" % job.basefilenm)
+        plt.savefig(job.basefilenm+".accelcands.summary.png")
+        
+        # Write out sifting candidate summary
+        all_accel_cands.print_cand_summary(job.basefilenm+".accelcands.summary")
+        # Write out sifting comprehensive report of bad candidates
+        all_accel_cands.write_cand_report(job.basefilenm+".accelcands.report")
+        timed_execute("gzip --best %s" % job.basefilenm+".accelcands.report")
+
+        # Moving of results to resultsdir now happens in clean_up(...)
+        # shutil.copy(job.basefilenm+".accelcands", job.outputdir)
+
+    job.sifting_time = time.time() - job.sifting_time
+
+    return all_accel_cands
+
+def sift_singlepulse(job):
+    # Make the single-pulse plots
+    basedmb = job.basefilenm+"_DM"
+    basedme = ".singlepulse "
+    # The following will make plots for DM ranges:
+    #    0-110, 100-310, 300-1000+
+    dmglobs = [basedmb+"[0-9].[0-9][0-9]"+basedme +
+               basedmb+"[0-9][0-9].[0-9][0-9]"+basedme +
+               basedmb+"10[0-9].[0-9][0-9]"+basedme,
+               basedmb+"[12][0-9][0-9].[0-9][0-9]"+basedme +
+               basedmb+"30[0-9].[0-9][0-9]"+basedme,
+               basedmb+"[3-9][0-9][0-9].[0-9][0-9]"+basedme +
+               basedmb+"1[0-9][0-9][0-9].[0-9][0-9]"+basedme,
+               basedmb+"[1-9][0-9][0-9][0-9].[0-9][0-9]"+basedme]
+    dmrangestrs = ["0-110", "100-310", "300-2000","1000-10000"]
+    psname = job.basefilenm+"_singlepulse.ps"
+
+    for dmglob, dmrangestr in zip(dmglobs, dmrangestrs):
+        dmfiles = []
+        for dmg in dmglob.split():
+            dmfiles += glob.glob(dmg.strip())
+        # Check that there are matching files and they are not all empty
+        if dmfiles and sum([os.path.getsize(f) for f in dmfiles]):
+            cmd = 'single_pulse_search.py -t %f -g "%s"' % \
+                (config.searching.singlepulse_plot_SNR, dmglob)
+            job.singlepulse_time += timed_execute(cmd)
+            os.rename(psname,
+                    job.basefilenm+"_DMs%s_singlepulse.ps" % dmrangestr)
+
+    # Do singlepulse grouping (Chen Karako's code) and waterfalling (Chitrang Patel's code) analysis
+    if config.searching.sp_grouping and job.masked_fraction < 0.2:
+        job.sp_grouping_time = time.time()
+        import analyse_sp_palfa
+        analyse_sp_palfa.main()
+
+        cmd = "sp_pipeline.py --infile %s --groupsfile groups.txt --mask %s %s *.singlepulse" % \
+              (maskfilenm.replace(".mask",".inf"), maskfilenm, job.filenmstr)
+        timed_execute(cmd)
+
+        timed_execute("gzip groups.txt")
+        job.sp_grouping_time = time.time() - job.sp_grouping_time
+
+def fold_periodicity_candidates(job,accel_cands):
+    """ Fold a list of candidates from sifting, rate them, 
+        and write candidate attributes to file.
+    """
+    # Fold the best candidates
+    cands_folded = 0
+    for cand in accel_cands:
+        print "At cand %s" % str(cand)
+        if cands_folded == config.searching.max_cands_to_fold:
+            break
+        if cand.sigma >= config.searching.to_prepfold_sigma:
+            print "...folding"
+            job.folding_time += timed_execute(get_folding_command(cand, job))
+            cands_folded += 1
+    job.num_cands_folded = cands_folded
+    
+    # Set up theano compile dir (UBC_AI rating uses theano)
+    theano_compiledir = os.path.join(job.tempdir,'theano_compile')
+    os.mkdir(theano_compiledir)
+    os.putenv("THEANO_FLAGS","compiledir=%s" % theano_compiledir) 
+
+    # Rate candidates
+    timed_execute("rate_pfds.py --redirect-warnings --include-all *.pfd")
+    sys.stdout.flush()
+
+    # Calculate some candidate attributes from pfds
+    attrib_file = open('candidate_attributes.txt','w')
+    for pfdfn in glob.glob("*.pfd"):
+        attribs = {}
+        pfd = prepfold.pfd(pfdfn)
+        red_chi2 = pfd.bestprof.chi_sqr
+        dof = pfd.proflen - 1
+        attribs['prepfold_sigma'] = \
+                -scipy.stats.norm.ppf(scipy.stats.chi2.sf(red_chi2*dof, dof))
+        
+        if config.searching.use_fixchi:
+            # Remake prepfold plot with rescaled chi-sq
+            cmd = "show_pfd -noxwin -fixchi %s" % pfdfn
+            timed_execute(cmd) 
+
+            # Get prepfold sigma from the rescaled bestprof
+            pfd = prepfold.pfd(pfdfn)
+            red_chi2 = pfd.bestprof.chi_sqr
+            attribs['rescaled_prepfold_sigma'] = \
+                    -scipy.stats.norm.ppf(scipy.stats.chi2.sf(red_chi2*dof, dof))
+        else:
+            # Rescale prepfold sigma by estimating the off-signal
+            # reduced chi-sq
+	    off_red_chi2 = pfd.estimate_offsignal_redchi2()
+	    new_red_chi2 = red_chi2 / off_red_chi2
+            attribs['rescaled_prepfold_sigma'] = \
+                    -scipy.stats.norm.ppf(scipy.stats.chi2.sf(new_red_chi2*dof, dof))
+
+        for key in attribs:
+            attrib_file.write("%s\t%s\t%.3f\n" % (pfdfn, key, attribs[key]))
+    attrib_file.close()
 
 def search_job(job):
     """Search the observation defined in the obs_info
@@ -560,8 +803,8 @@ def search_job(job):
     zerodm_flag = '-zerodm' if job.zerodm else ''
 
     # Use whatever .zaplist is found in the current directory
-    zaplist = glob.glob("*.zaplist")[0]
-    print "Using %s as zaplist" % zaplist
+    job.zaplist = glob.glob("*.zaplist")[0]
+    print "Using %s as zaplist" % job.zaplist
 
     # Use whatever *_radar_samples.txt is found in the current directory
     if config.searching.use_radar_clipping:
@@ -625,92 +868,13 @@ def search_job(job):
                         job.tempdir, job.basefilenm, job.filenmstr)
                 job.dedispersing_time += timed_execute(cmd)
             
-            # Iterate over all the new DMs
-            basenms_forpass = []
-            for dmstr in ddplan.dmlist[passnum]:
-                dmstrs.append(dmstr)
-                basenm = os.path.join(job.tempdir, job.basefilenm+"_DM"+dmstr)
-                basenms_forpass.append(basenm)
-
-                datnm = basenm+".dat"
-                fftnm = basenm+".fft"
-                infnm = basenm+".inf"
-
-
-                # FFT, zap, and de-redden
-                cmd = "realfft %s"%datnm
-                job.FFT_time += timed_execute(cmd)
-                cmd = "zapbirds -zap -zapfile %s -baryv %.6g %s"%\
-                      (zaplist, job.baryv, fftnm)
-                job.FFT_time += timed_execute(cmd)
-                cmd = "rednoise %s"%fftnm
-                job.FFT_time += timed_execute(cmd)
-                try:
-                    os.rename(basenm+"_red.fft", fftnm)
-                except: pass
-                
-                # Do the low-acceleration search
-                cmd = "accelsearch -inmem -numharm %d -sigma %f " \
-                        "-zmax %d -flo %f %s"%\
-                        (config.searching.lo_accel_numharm, \
-                         config.searching.lo_accel_sigma, \
-                         config.searching.lo_accel_zmax, \
-                         config.searching.lo_accel_flo, fftnm)
-                job.lo_accelsearch_time += timed_execute(cmd)
-                try:
-                    os.remove(basenm+"_ACCEL_%d.txtcand" % config.searching.lo_accel_zmax)
-                except: pass
-                try:  # This prevents errors if there are no cand files to copy
-                    shutil.move(basenm+"_ACCEL_%d.cand" % config.searching.lo_accel_zmax, \
-                                    job.workdir)
-                    shutil.move(basenm+"_ACCEL_%d" % config.searching.lo_accel_zmax, \
-                                    job.workdir)
-                except: pass
-        
-                # Do the high-acceleration search (only for non-zerodm case)
-                if not job.zerodm:
-                    cmd = "accelsearch -inmem -numharm %d -sigma %f " \
-                            "-zmax %d -flo %f %s"%\
-                            (config.searching.hi_accel_numharm, \
-                             config.searching.hi_accel_sigma, \
-                             config.searching.hi_accel_zmax, \
-                             config.searching.hi_accel_flo, fftnm)
-                    job.hi_accelsearch_time += timed_execute(cmd)
-                    try:
-                        os.remove(basenm+"_ACCEL_%d.txtcand" % config.searching.hi_accel_zmax)
-                    except: pass
-                    try:  # This prevents errors if there are no cand files to copy
-                        shutil.move(basenm+"_ACCEL_%d.cand" % config.searching.hi_accel_zmax, \
-                                        job.workdir)
-                        shutil.move(basenm+"_ACCEL_%d" % config.searching.hi_accel_zmax, \
-                                        job.workdir)
-                    except: pass
-
-                # Remove the .fft files
-                try:
-                    os.remove(fftnm)
-                except: pass
-
-            # Do the single-pulse search
-            dats_str = '.dat '.join(basenms_forpass) + '.dat'
-            if job.zerodm:
-                cmd = "single_pulse_search.py -b -p -m %f -t %f %s"%\
-                      (config.searching.singlepulse_maxwidth, \
-                       config.searching.singlepulse_threshold, dats_str)
-            else:
-                cmd = "single_pulse_search.py -p -m %f -t %f %s"%\
-                      (config.searching.singlepulse_maxwidth, \
-                       config.searching.singlepulse_threshold, dats_str)
-            job.singlepulse_time += timed_execute(cmd)
-
-            # Move .singlepulse and .inf files and delete .dat files
-            for basenm in basenms_forpass:
-                try:
-                    shutil.move(basenm+".singlepulse", job.workdir)
-                    shutil.move(basenm+".inf", job.workdir)
-                    os.remove(basenm+".dat")
-                except: pass
+            # Search all the new DMs
+            dmlist_forpass = ddplan.dmlist[passnum]
+            periodicity_search_pass(job,dmlist_forpass)
+            singlepulse_search_pass(job,dmlist_forpass)
+            dmstrs += dmlist_forpass
             
+            # Clean up subbands if using them
             if config.searching.use_subbands:
                 if config.searching.fold_rawdata:
                     # Subband files are no longer needed
@@ -720,91 +884,9 @@ def search_job(job):
                     for sub in glob.glob(os.path.join(job.tempdir, 'subbands', "*")):
                         shutil.move(sub, os.path.join(job.workdir, 'subbands'))
 
-    # Make the single-pulse plots
-    basedmb = job.basefilenm+"_DM"
-    basedme = ".singlepulse "
-    # The following will make plots for DM ranges:
-    #    0-110, 100-310, 300-1000+
-    dmglobs = [basedmb+"[0-9].[0-9][0-9]"+basedme +
-               basedmb+"[0-9][0-9].[0-9][0-9]"+basedme +
-               basedmb+"10[0-9].[0-9][0-9]"+basedme,
-               basedmb+"[12][0-9][0-9].[0-9][0-9]"+basedme +
-               basedmb+"30[0-9].[0-9][0-9]"+basedme,
-               basedmb+"[3-9][0-9][0-9].[0-9][0-9]"+basedme +
-               basedmb+"1[0-9][0-9][0-9].[0-9][0-9]"+basedme,
-               basedmb+"[1-9][0-9][0-9][0-9].[0-9][0-9]"+basedme]
-    dmrangestrs = ["0-110", "100-310", "300-2000","1000-10000"]
-    psname = job.basefilenm+"_singlepulse.ps"
 
-    for dmglob, dmrangestr in zip(dmglobs, dmrangestrs):
-        dmfiles = []
-        for dmg in dmglob.split():
-            dmfiles += glob.glob(dmg.strip())
-        # Check that there are matching files and they are not all empty
-        if dmfiles and sum([os.path.getsize(f) for f in dmfiles]):
-            cmd = 'single_pulse_search.py -t %f -g "%s"' % \
-                (config.searching.singlepulse_plot_SNR, dmglob)
-            job.singlepulse_time += timed_execute(cmd)
-            os.rename(psname,
-                    job.basefilenm+"_DMs%s_singlepulse.ps" % dmrangestr)
-
-    # Do singlepulse grouping (Chen Karako's code) and waterfalling (Chitrang Patel's code) analysis
-    if config.searching.sp_grouping and job.masked_fraction < 0.2:
-        job.sp_grouping_time = time.time()
-        import analyse_sp_palfa
-        analyse_sp_palfa.main()
-
-        cmd = "sp_pipeline.py --infile %s --groupsfile groups.txt --mask %s %s *.singlepulse" % \
-              (maskfilenm.replace(".mask",".inf"), maskfilenm, job.filenmstr)
-        timed_execute(cmd)
-
-        timed_execute("gzip groups.txt")
-        job.sp_grouping_time = time.time() - job.sp_grouping_time
-
-    # Sift through the candidates to choose the best to fold
-    job.sifting_time = time.time()
-
-    lo_accel_cands = sifting.read_candidates(glob.glob("*ACCEL_%d" % config.searching.lo_accel_zmax), track=True)
-    if len(lo_accel_cands):
-        lo_accel_cands = sifting.remove_duplicate_candidates(lo_accel_cands)
-    if len(lo_accel_cands):
-        lo_accel_cands = sifting.remove_DM_problems(lo_accel_cands, config.searching.numhits_to_fold,
-                                                    dmstrs, config.searching.low_DM_cutoff)
-
-    hi_accel_cands = sifting.read_candidates(glob.glob("*ACCEL_%d" % config.searching.hi_accel_zmax), track=True)
-    if len(hi_accel_cands):
-        hi_accel_cands = sifting.remove_duplicate_candidates(hi_accel_cands)
-    if len(hi_accel_cands):
-        hi_accel_cands = sifting.remove_DM_problems(hi_accel_cands, config.searching.numhits_to_fold,
-                                                    dmstrs, config.searching.low_DM_cutoff)
-
-    all_accel_cands = lo_accel_cands + hi_accel_cands
-    if len(all_accel_cands):
-        all_accel_cands = sifting.remove_harmonics(all_accel_cands)
-        # Note:  the candidates will be sorted in _sigma_ order, not _SNR_!
-        all_accel_cands.sort(sifting.cmp_sigma)
-        print "Sending candlist to stdout before writing to file"
-        sifting.write_candlist(all_accel_cands)
-        sys.stdout.flush()
-        sifting.write_candlist(all_accel_cands, job.basefilenm+".accelcands")
-        # Make sifting summary plots
-        all_accel_cands.plot_rejects()
-        plt.title("%s Rejected Cands" % job.basefilenm)
-        plt.savefig(job.basefilenm+".accelcands.rejects.png")
-        all_accel_cands.plot_summary()
-        plt.title("%s Periodicity Summary" % job.basefilenm)
-        plt.savefig(job.basefilenm+".accelcands.summary.png")
-        
-        # Write out sifting candidate summary
-        all_accel_cands.print_cand_summary(job.basefilenm+".accelcands.summary")
-        # Write out sifting comprehensive report of bad candidates
-        all_accel_cands.write_cand_report(job.basefilenm+".accelcands.report")
-        timed_execute("gzip --best %s" % job.basefilenm+".accelcands.report")
-
-        # Moving of results to resultsdir now happens in clean_up(...)
-        # shutil.copy(job.basefilenm+".accelcands", job.outputdir)
-
-    job.sifting_time = time.time() - job.sifting_time
+    sift_singlepulse(job)
+    all_accel_cands = sift_periodicity(job,dmstrs)
 
     #####
     # Print some info useful for debugging
@@ -820,58 +902,8 @@ def search_job(job):
     sys.stdout.flush()
     #####
 
-    # Fold the best candidates
-    cands_folded = 0
-    for cand in all_accel_cands:
-        print "At cand %s" % str(cand)
-        if cands_folded == config.searching.max_cands_to_fold:
-            break
-        if cand.sigma >= config.searching.to_prepfold_sigma:
-            print "...folding"
-            job.folding_time += timed_execute(get_folding_command(cand, job))
-            cands_folded += 1
-    job.num_cands_folded = cands_folded
-    
-    # Set up theano compile dir (UBC_AI rating uses theano)
-    theano_compiledir = os.path.join(job.tempdir,'theano_compile')
-    os.mkdir(theano_compiledir)
-    os.putenv("THEANO_FLAGS","compiledir=%s" % theano_compiledir) 
+    fold_periodicity_candidates(job,all_accel_cands)
 
-    # Rate candidates
-    timed_execute("rate_pfds.py --redirect-warnings --include-all *.pfd")
-    sys.stdout.flush()
-
-    # Calculate some candidate attributes from pfds
-    attrib_file = open('candidate_attributes.txt','w')
-    for pfdfn in glob.glob("*.pfd"):
-        attribs = {}
-        pfd = prepfold.pfd(pfdfn)
-        red_chi2 = pfd.bestprof.chi_sqr
-        dof = pfd.proflen - 1
-        attribs['prepfold_sigma'] = \
-                -scipy.stats.norm.ppf(scipy.stats.chi2.sf(red_chi2*dof, dof))
-        
-        if config.searching.use_fixchi:
-            # Remake prepfold plot with rescaled chi-sq
-            cmd = "show_pfd -noxwin -fixchi %s" % pfdfn
-            timed_execute(cmd) 
-
-            # Get prepfold sigma from the rescaled bestprof
-            pfd = prepfold.pfd(pfdfn)
-            red_chi2 = pfd.bestprof.chi_sqr
-            attribs['rescaled_prepfold_sigma'] = \
-                    -scipy.stats.norm.ppf(scipy.stats.chi2.sf(red_chi2*dof, dof))
-        else:
-            # Rescale prepfold sigma by estimating the off-signal
-            # reduced chi-sq
-	    off_red_chi2 = pfd.estimate_offsignal_redchi2()
-	    new_red_chi2 = red_chi2 / off_red_chi2
-            attribs['rescaled_prepfold_sigma'] = \
-                    -scipy.stats.norm.ppf(scipy.stats.chi2.sf(new_red_chi2*dof, dof))
-
-        for key in attribs:
-            attrib_file.write("%s\t%s\t%.3f\n" % (pfdfn, key, attribs[key]))
-    attrib_file.close()
 
     # Print some info useful for debugging
     print "Contents of workdir (%s) after folding: " % job.workdir
