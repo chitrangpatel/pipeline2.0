@@ -5,15 +5,16 @@ use_subbands          = True
 # To fold from raw data (ie not from subbands or dedispersed FITS files)
 # set the following to True.
 fold_rawdata          = True
-# To do single-pulse and accel search both with and without zerodm set 
-# the appropriate option to True (if False, only without)
-use_zerodm            = False
 # To use a radar samples list of bins to be removed by clipping set to True.
 # A corresponding list needs to be present in the zaplist tarball 
 # for this to have an effect.
 use_radar_clipping    = False
 #To do grouping analysis on singlepulse output set to True.
 sp_grouping           = False
+# To do a second periodicity and/or single pulse search using zero-dm 
+# set the appropriate option to True
+zerodm_periodicity    = False
+zerodm_singlepulse    = False
 
 # Tunable parameters for searching and folding
 # (you probably don't need to tune any of them)

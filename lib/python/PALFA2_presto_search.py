@@ -242,7 +242,12 @@ class obs_info:
     """
     def __init__(self, filenms, resultsdir, zerodm):
         
+        # whether or not to zerodm timeseries
         self.zerodm = zerodm
+ 
+        # which searches to perform
+        self.search_pdm = True
+        self.search_sp = True
 
         self.filenms = filenms
         self.filenmstr = ' '.join(self.filenms)
@@ -458,8 +463,10 @@ def main(filenms, workdir, resultsdir):
         clean_up(job)
 
     # Do search with zerodming
-    if config.searching.use_zerodm:
-        zerodm_job = set_up_job(filenms, workdir, resultsdir, zerodm=True) 
+    if config.searching.zerodm_periodicity or config.searching.zerodm_singlepulse:
+        zerodm_job = set_up_job(filenms, workdir, resultsdir, zerodm=True, \
+                                search_pdm=config.searching.zerodm_periodicity, \
+                                search_sp=config.searching.zerodm_singlepulse) 
 
         # copy zaplist from non-zerodm job to zerodm job workdir
         zaplist = glob.glob(os.path.join(job.outputdir,'*.zaplist'))[0]
@@ -500,7 +507,8 @@ def main(filenms, workdir, resultsdir):
 
 
     
-def set_up_job(filenms, workdir, resultsdir,zerodm=False):
+def set_up_job(filenms, workdir, resultsdir, zerodm=False, \
+               search_pdm=True, search_sp=True):
     """Change to the working directory and set it up.
         Create a obs_info instance, set it up and return it.
     """
@@ -523,6 +531,10 @@ def set_up_job(filenms, workdir, resultsdir,zerodm=False):
         job.workdir = zerodm_workdir
     else:
         job.workdir = workdir
+
+    # Set which searches to do
+    job.search_pdm = search_pdm
+    job.search_sp = search_sp
 
     # Create a directory to hold all the subbands
     if config.processing.use_pbs_subdir:
@@ -732,7 +744,7 @@ def sift_singlepulse(job):
         analyse_sp_palfa.main()
 
         cmd = "sp_pipeline.py --infile %s --groupsfile groups.txt --mask %s %s *.singlepulse" % \
-              (maskfilenm.replace(".mask",".inf"), maskfilenm, job.filenmstr)
+              (job.basefilenm + "_rfifind.inf", job.basefilenm + "_rfifind.mask", job.filenmstr)
         timed_execute(cmd)
 
         timed_execute("gzip groups.txt")
@@ -870,8 +882,10 @@ def search_job(job):
             
             # Search all the new DMs
             dmlist_forpass = ddplan.dmlist[passnum]
-            periodicity_search_pass(job,dmlist_forpass)
-            singlepulse_search_pass(job,dmlist_forpass)
+            if job.search_pdm:
+                periodicity_search_pass(job,dmlist_forpass)
+            if job.search_sp:
+                singlepulse_search_pass(job,dmlist_forpass)
             dmstrs += dmlist_forpass
             
             # Clean up subbands if using them
@@ -885,8 +899,10 @@ def search_job(job):
                         shutil.move(sub, os.path.join(job.workdir, 'subbands'))
 
 
-    sift_singlepulse(job)
-    all_accel_cands = sift_periodicity(job,dmstrs)
+    if job.search_sp:
+        sift_singlepulse(job)
+    if job.search_pdm:
+        all_accel_cands = sift_periodicity(job,dmstrs)
 
     #####
     # Print some info useful for debugging
@@ -902,7 +918,8 @@ def search_job(job):
     sys.stdout.flush()
     #####
 
-    fold_periodicity_candidates(job,all_accel_cands)
+    if job.search_pdm:
+        fold_periodicity_candidates(job,all_accel_cands)
 
 
     # Print some info useful for debugging
