@@ -657,7 +657,6 @@ def singlepulse_search_pass(job,dmstrs):
         try:
             shutil.move(basenm+".singlepulse", job.workdir)
             shutil.move(basenm+".inf", job.workdir)
-            os.remove(basenm+".dat")
         except: pass
 
 def sift_periodicity(job,dmstrs):
@@ -887,6 +886,13 @@ def search_job(job):
             if job.search_sp:
                 singlepulse_search_pass(job,dmlist_forpass)
             dmstrs += dmlist_forpass
+
+            # Clean up .dat files for pass
+            for dmstr in dmlist_forpass:
+                basenm = os.path.join(job.tempdir, job.basefilenm+"_DM"+dmstr)
+                try:
+                    os.remove(basenm+".dat")
+                except: pass
             
             # Clean up subbands if using them
             if config.searching.use_subbands:
