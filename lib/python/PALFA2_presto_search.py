@@ -19,6 +19,7 @@ import scipy
 import psr_utils
 import presto
 import prepfold
+import Group_sp_events
 
 import matplotlib
 matplotlib.use('agg') #Use AGG (png) backend to plot
@@ -739,8 +740,7 @@ def sift_singlepulse(job):
     # Do singlepulse grouping (Chen Karako's code) and waterfalling (Chitrang Patel's code) analysis
     if config.searching.sp_grouping and job.masked_fraction < 0.2:
         job.sp_grouping_time = time.time()
-        import analyse_sp_palfa
-        analyse_sp_palfa.main()
+        Group_sp_events.main()
 
         cmd = "sp_pipeline.py --infile %s --groupsfile groups.txt --mask %s %s *.singlepulse" % \
               (job.basefilenm + "_rfifind.inf", job.basefilenm + "_rfifind.mask", job.filenmstr)
