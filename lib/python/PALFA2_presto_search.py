@@ -19,12 +19,12 @@ import scipy
 import psr_utils
 import presto
 import prepfold
-import Group_sp_events
 
 import matplotlib
 matplotlib.use('agg') #Use AGG (png) backend to plot
 import matplotlib.pyplot as plt
 import sifting  
+import Group_sp_events
 
 import datafile
 import config.searching
