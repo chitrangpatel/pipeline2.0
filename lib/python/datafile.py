@@ -279,7 +279,11 @@ class PsrfitsData(Data):
             Note: This cannot be undone!
         
         """
-        import pyfits
+        try:
+            import pyfits
+        except ImportError:
+            import astropy.io.fits as pyfits
+
         if self.posn_corrected:
             for fn in self.fns:
                 hdus = pyfits.open(fn, mode='update')
