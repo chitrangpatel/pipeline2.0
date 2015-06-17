@@ -280,9 +280,9 @@ class PsrfitsData(Data):
         
         """
         try:
-            import pyfits
-        except ImportError:
             import astropy.io.fits as pyfits
+        except ImportError:
+            import pyfits
 
         if self.posn_corrected:
             for fn in self.fns:
