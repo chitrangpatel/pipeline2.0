@@ -63,14 +63,14 @@ class SpectraInfo:
 
             primary = hdus['PRIMARY'].header
 
-            if primary.has_key('IBEAM'):
+            if 'IBEAM' in primary:
                 self.beam_id = primary['IBEAM']
-            elif hdus[1].header.has_key('BEAM'):
+            elif 'BEAM' in primary:
                 self.beam_id = hdus[1].header['BEAM']
             else:
                 self.beam_id = None
 
-            if primary.has_key('TELESCOP'):
+            if 'TELESCOP' in primary:
                 telescope = primary['TELESCOP']
                 # Quick fix for MockSpec data...
                 if telescope == "ARECIBO 305m":
@@ -99,7 +99,7 @@ class SpectraInfo:
             self.header_version = primary['HDRVER']
 
             # CHAN_DM card is not in earlier versions of PSRFITS
-            if primary.has_key('CHAN_DM'):
+            if 'CHAN_DM' in primary:
                 self.chan_dm = primary['CHAN_DM']
             else:
                 self.chan_dm = 0.0

@@ -22,6 +22,9 @@ from astro_utils import calendar
 import pipeline_utils
 import config.basic
 
+from astropy.utils.exceptions import AstropyUserWarning
+warnings.simplefilter('ignore', category=AstropyUserWarning)
+
 date_re = re.compile(r'^(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})$')
 time_re = re.compile(r'^(?P<hour>\d{2}):(?P<min>\d{2}):(?P<sec>\d{2})$')
 
