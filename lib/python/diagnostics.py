@@ -32,12 +32,13 @@ class Diagnostic(upload.Uploadable):
     description = None
     name = None
     
-    def __init__(self, obs_name, beam_id, obstype, version_number, directory):
+    def __init__(self, obs_name, beam_id, obstype, version_number, directory, sp_directory):
         self.obs_name = obs_name
         self.beam_id = beam_id
         self.obstype = obstype.lower()
         self.version_number = version_number
         self.directory = directory
+        self.sp_directory = sp_directory
         # Store a few configurations so the upload can be checked
         self.pipeline = config.basic.pipeline
         self.institution = config.basic.institution
@@ -532,6 +533,118 @@ class NumAboveThreshDiagnostic(FloatDiagnostic):
         self.value = len([c for c in candlist \
                             if c.sigma >= params['to_prepfold_sigma']])
 
+class NumSPWaterfalledDiagnostic(FloatDiagnostic):
+    name = "Num SP cands waterfalled"
+    description = "The number of single-pulse candidates waterfalled."
+
+    def get_diagnostic(self):
+        spdpngs = glob.glob(os.path.join(self.sp_directory, "*.spd.png"))
+        self.value = len(spdpngs)
+
+class NumRank0SPGroups(FloatDiagnostic):
+    name = "Num rank 0 SP groups"
+    description = "The number of rank 0 groups found by SP grouping."
+
+    numrank_re = re.compile(r"Number of rank 0 groups: (?P<numrank>.*)\n")
+
+    def get_diagnostic(self):
+        sp_summaryf = open(os.path.join(self.sp_directory,"spsummary.txt"))
+        for line in sp_summaryf:
+            m = self.numrank_re.search(line)
+            if m:
+                self.value = float(m.groupdict()['numrank'])
+                break
+        sp_summaryf.close()
+
+class NumRank2SPGroups(FloatDiagnostic):
+    name = "Num rank 2 SP groups"
+    description = "The number of rank 2 groups found by SP grouping."
+
+    numrank_re = re.compile(r"Number of rank 2 groups: (?P<numrank>.*)\n")
+
+    def get_diagnostic(self):
+        sp_summaryf = open(os.path.join(self.sp_directory,"spsummary.txt"))
+        for line in sp_summaryf:
+            m = self.numrank_re.search(line)
+            if m:
+                self.value = float(m.groupdict()['numrank'])
+                break
+        sp_summaryf.close()
+
+class NumRank3SPGroups(FloatDiagnostic):
+    name = "Num rank 3 SP groups"
+    description = "The number of rank 3 groups found by SP grouping."
+
+    numrank_re = re.compile(r"Number of rank 3 groups: (?P<numrank>.*)\n")
+
+    def get_diagnostic(self):
+        sp_summaryf = open(os.path.join(self.sp_directory,"spsummary.txt"))
+        for line in sp_summaryf:
+            m = self.numrank_re.search(line)
+            if m:
+                self.value = float(m.groupdict()['numrank'])
+                break
+        sp_summaryf.close()
+
+class NumRank4SPGroups(FloatDiagnostic):
+    name = "Num rank 4 SP groups"
+    description = "The number of rank 4 groups found by SP grouping."
+
+    numrank_re = re.compile(r"Number of rank 4 groups: (?P<numrank>.*)\n")
+
+    def get_diagnostic(self):
+        sp_summaryf = open(os.path.join(self.sp_directory,"spsummary.txt"))
+        for line in sp_summaryf:
+            m = self.numrank_re.search(line)
+            if m:
+                self.value = float(m.groupdict()['numrank'])
+                break
+        sp_summaryf.close()
+
+class NumRank5SPGroups(FloatDiagnostic):
+    name = "Num rank 5 SP groups"
+    description = "The number of rank 5 groups found by SP grouping."
+
+    numrank_re = re.compile(r"Number of rank 5 groups: (?P<numrank>.*)\n")
+
+    def get_diagnostic(self):
+        sp_summaryf = open(os.path.join(self.sp_directory,"spsummary.txt"))
+        for line in sp_summaryf:
+            m = self.numrank_re.search(line)
+            if m:
+                self.value = float(m.groupdict()['numrank'])
+                break
+        sp_summaryf.close()
+
+class NumRank6SPGroups(FloatDiagnostic):
+    name = "Num rank 6 SP groups"
+    description = "The number of rank 6 groups found by SP grouping."
+
+    numrank_re = re.compile(r"Number of rank 6 groups: (?P<numrank>.*)\n")
+
+    def get_diagnostic(self):
+        sp_summaryf = open(os.path.join(self.sp_directory,"spsummary.txt"))
+        for line in sp_summaryf:
+            m = self.numrank_re.search(line)
+            if m:
+                self.value = float(m.groupdict()['numrank'])
+                break
+        sp_summaryf.close()
+
+class NumRank7SPGroups(FloatDiagnostic):
+    name = "Num rank 7 SP groups"
+    description = "The number of rank 7 groups found by SP grouping."
+
+    numrank_re = re.compile(r"Number of rank 7 groups: (?P<numrank>.*)\n")
+
+    def get_diagnostic(self):
+        sp_summaryf = open(os.path.join(self.sp_directory,"spsummary.txt"))
+        for line in sp_summaryf:
+            m = self.numrank_re.search(line)
+            if m:
+                self.value = float(m.groupdict()['numrank'])
+                break
+        sp_summaryf.close()
 
 class ZaplistUsed(PlotDiagnostic):
     name = "Zaplist used"
@@ -787,7 +900,7 @@ class DiagnosticNonFatalError(pipeline_utils.PipelineError):
     pass
 
 
-def get_diagnostics(obsname, beamnum, obstype, versionnum, directory):
+def get_diagnostics(obsname, beamnum, obstype, versionnum, pdm_dir, sp_dir):
     """Get diagnostic to common DB.
         
         Inputs:
@@ -797,7 +910,8 @@ def get_diagnostics(obsname, beamnum, obstype, versionnum, directory):
             obstype: Type of data (either 'wapp' or 'mock').
             versionnum: A combination of the githash values from 
                         PRESTO and from the pipeline. 
-            directory: The directory containing results from the pipeline.
+            pdm_dir: The directory containing the periodicity results from the pipeline.
+            sp_dir: The directory containing the single-pulse results from the pipeline.
 
         Outputs:
             diagnostics: List of diagnostic objects.
@@ -810,7 +924,7 @@ def get_diagnostics(obsname, beamnum, obstype, versionnum, directory):
     for diagnostic_type in DIAGNOSTIC_TYPES:
         try:
             d = diagnostic_type(obsname, beamnum, obstype, \
-                            versionnum, directory)
+                            versionnum, pdm_dir, sp_dir)
         except DiagnosticNonFatalError:
             continue
 

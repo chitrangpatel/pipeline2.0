@@ -95,8 +95,12 @@ def upload_results(job_submit):
     try:
         # Connect to the DB
         db = database.Database('default', autocommit=False)
+
         # Prepare for upload
         dir = job_submit['output_dir']
+        pdm_dir = os.path.join(dir,"zerodm") if config.upload.upload_zerodm_periodicity else dir
+        sp_dir = os.path.join(dir,"zerodm") if config.upload.upload_zerodm_singlepulse else dir
+
         if not os.path.exists(dir) or not os.listdir(dir):
             errormsg = 'ERROR: Results directory, %s, does not exist or is empty for job_id=%d' %\
                        (dir, job_submit['job_id'])
@@ -122,13 +126,11 @@ def upload_results(job_submit):
         print "\tHeader parsed."
 
         rat_inst_id_cache = ratings2.utils.RatingInstanceIDCache(dbname='common3')
-        cand_dir = os.path.join(dir,"zerodm") if config.upload.upload_zerodm_periodicity else dir
-        cands, tempdir = candidates.get_candidates(version_number, cand_dir, \
+        cands, tempdir = candidates.get_candidates(version_number, pdm_dir, \
                                                    timestamp_mjd=data.timestamp_mjd, \
                                                    inst_cache=rat_inst_id_cache)
         print "\tPeriodicity candidates parsed."
-        cand_dir = os.path.join(dir,"zerodm") if config.upload.upload_zerodm_singlepulse else dir
-        sp_cands, tempdir_sp = sp_candidates.get_spcandidates(version_number, cand_dir, \
+        sp_cands, tempdir_sp = sp_candidates.get_spcandidates(version_number, sp_dir, \
                                                               timestamp_mjd=data.timestamp_mjd, \
                                                               inst_cache=rat_inst_id_cache)
         print "\tSingle pulse candidates parsed."
@@ -139,7 +141,7 @@ def upload_results(job_submit):
                                              data.beam_id, \
                                              data.obstype, \
                                              version_number, \
-                                             dir)
+                                             pdm_dir, sp_dir)
         print "\tDiagnostics parsed."
         
         if debug.UPLOAD: 
