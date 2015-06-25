@@ -46,6 +46,7 @@ sifting.harm_pow_cutoff = config.searching.sifting_harm_pow_cutoff
 
 debug = 0
 
+
 def get_baryv(ra, dec, mjd, T, obs="AO"):
    """
    get_baryv(ra, dec, mjd, T):
@@ -747,6 +748,9 @@ def sift_singlepulse(job):
         timed_execute(cmd)
 
         timed_execute("gzip groups.txt")
+
+        timed_execute("rate_spds.py --redirect-warnings --include-all *.spd")
+
         job.sp_grouping_time = time.time() - job.sp_grouping_time
 
 def fold_periodicity_candidates(job,accel_cands):
@@ -926,7 +930,6 @@ def search_job(job):
 
     if job.search_pdm:
         fold_periodicity_candidates(job,all_accel_cands)
-
 
     # Print some info useful for debugging
     print "Contents of workdir (%s) after folding: " % job.workdir
