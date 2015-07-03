@@ -998,7 +998,8 @@ def clean_up(job):
                     "_pfd.tgz",
                     "_bestprof.tgz",
                     "_pfd_rat.tgz",
-                    "_spd.tgz"]
+                    "_spd.tgz",
+                    "_spd_rat.tgz"]
     tar_globs = ["*_ACCEL_%d"%config.searching.lo_accel_zmax,
                  "*_ACCEL_%d"%config.searching.hi_accel_zmax,
                  "*_ACCEL_%d.cand"%config.searching.lo_accel_zmax,
@@ -1008,7 +1009,8 @@ def clean_up(job):
                  "*.pfd",
                  "*.pfd.bestprof",
                  "*.pfd.rat",
-                 "*.spd"]
+                 "*.spd",
+                 "*.spd.rat"]
 
     print "Tarring up results"
     for (tar_suffix, tar_glob) in zip(tar_suffixes, tar_globs):
