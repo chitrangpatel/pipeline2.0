@@ -22,6 +22,7 @@ import database
 import upload
 import pipeline_utils
 from formats import accelcands
+from sp_pipeline import split_parameters
 import config.basic
 
 
@@ -541,6 +542,26 @@ class NumSPWaterfalledDiagnostic(FloatDiagnostic):
         spdpngs = glob.glob(os.path.join(self.sp_directory, "*.spd.png"))
         self.value = len(spdpngs)
 
+class MinSigmaWaterfalledDiagnostic(FloatDiagnostic):
+    name = "Min sigma waterfalled"
+    description = "The smallest sigma value of all waterfalled SP candidates "\
+                    "from this beam."
+
+    def get_diagnostic(self):
+        max_waterfalled = 100
+        groupsfn = os.path.join(self.sp_directory, "groups.txt.gz")
+        sigmas = np.array([])
+        for rank in [7, 6, 5, 4, 3]:
+            values = split_parameters(rank, groupsfn)
+            sigmas += [ val[1] for val in values]
+        if len(sigmas < max_waterfalled):
+            self.value = np.min(sigmas)
+        else:
+            sigmas.sort(reverse=True)
+            self.value = sigmas[max_waterfalled-1]
+            
+        self.value = len(spdpngs)
+
 class NumRank0SPGroups(FloatDiagnostic):
     name = "Num rank 0 SP groups"
     description = "The number of rank 0 groups found by SP grouping."
@@ -957,7 +978,16 @@ DIAGNOSTIC_TYPES = [RFIPercentageDiagnostic,
                     CalRemovalSummary,
                     NumCalRowsRemoved,
                     RadarSamplesUsed,
-                    PercentRadarClipped
+                    PercentRadarClipped,
+                    NumSPWaterfalledDiagnostic,
+                    MinSigmaWaterfalledDiagnostic,
+                    NumRank0SPGroups,
+                    NumRank2SPGroups,
+                    NumRank3SPGroups,
+                    NumRank4SPGroups,
+                    NumRank5SPGroups,
+                    NumRank6SPGroups,
+                    NumRank7SPGroups
                    ]
 
 
