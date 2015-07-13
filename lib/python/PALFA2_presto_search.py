@@ -749,7 +749,8 @@ def sift_singlepulse(job):
 
         timed_execute("gzip groups.txt")
 
-        timed_execute("rate_spds.py --redirect-warnings --include-all *.spd")
+        if glob.glob("*.spd"):
+            timed_execute("rate_spds.py --redirect-warnings --include-all *.spd")
 
         job.sp_grouping_time = time.time() - job.sp_grouping_time
 
