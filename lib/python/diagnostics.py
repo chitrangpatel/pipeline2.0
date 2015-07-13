@@ -14,6 +14,7 @@ import optparse
 import types
 import binascii
 import time
+import gzip
 
 import numpy as np
 
@@ -550,17 +551,18 @@ class MinSigmaWaterfalledDiagnostic(FloatDiagnostic):
     def get_diagnostic(self):
         max_waterfalled = 100
         groupsfn = os.path.join(self.sp_directory, "groups.txt.gz")
-        sigmas = np.array([])
+        sigmas = []
         for rank in [7, 6, 5, 4, 3]:
-            values = split_parameters(rank, groupsfn)
+            groupsf = gzip.open(groupsfn,"r")
+            values = split_parameters(rank, groupsf)
             sigmas += [ val[1] for val in values]
-        if len(sigmas < max_waterfalled):
+            groupsf.close()
+
+        if len(sigmas) < max_waterfalled:
             self.value = np.min(sigmas)
         else:
             sigmas.sort(reverse=True)
             self.value = sigmas[max_waterfalled-1]
-            
-        self.value = len(spdpngs)
 
 class NumRank0SPGroups(FloatDiagnostic):
     name = "Num rank 0 SP groups"
