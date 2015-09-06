@@ -13,6 +13,7 @@ import tempfile
 import shutil
 import subprocess
 import tarfile
+import warnings
 
 import datafile
 import astro_utils.calendar
@@ -20,6 +21,15 @@ import astro_utils.calendar
 import config.processing
 import pipeline_utils
 
+def warn_to_stdout(message, category, filename, lineno, file=None, line=None):
+    """A function to replace warnings.showwarning so that warnings are
+        printed to STDOUT instead of STDERR.
+        Usage: warnings.showwarning = warn_to_stdout
+    """
+
+    sys.stdout.write(warnings.formatwarning(message,category,filename,lineno))
+
+warnings.showwarning = warn_to_stdout
 
 def get_datafns():
     """Get data filenames from command line or environment variable. 
@@ -178,7 +188,6 @@ def copy_zaplist(fns, workdir):
         if matches:
             ti = matches[0] # The first TarInfo object found 
                             # that matches the file name
-            radar_ti = radar_matches[0]
 
             # Write custom zaplist to workdir
             localfn = os.path.join(workdir, customzapfn)
@@ -187,12 +196,16 @@ def copy_zaplist(fns, workdir):
             f.close()
             print "Copied custom zaplist: %s" % customzapfn
 
-            # Write radar samples list to workdir
-            radar_localfn = os.path.join(workdir, radar_samples_fn)
-            f = open(radar_localfn, 'w')
-            f.write(zaptar.extractfile(radar_ti).read())
-            f.close()
-            print "Copied radar samples list: %s" % radar_samples_fn
+            if radar_matches:
+                radar_ti = radar_matches[0]
+
+                # Write radar samples list to workdir
+                radar_localfn = os.path.join(workdir, radar_samples_fn)
+                f = open(radar_localfn, 'w')
+                f.write(zaptar.extractfile(radar_ti).read())
+                f.close()
+                print "Copied radar samples list: %s" % radar_samples_fn
+
             break
         else:
             # The member we searched for doesn't exist, try next one
