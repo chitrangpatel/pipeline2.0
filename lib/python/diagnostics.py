@@ -558,6 +558,10 @@ class MinSigmaWaterfalledDiagnostic(FloatDiagnostic):
             sigmas += [ val[1] for val in values]
             groupsf.close()
 
+        if not sigmas:
+            errormsg = 'No candidates waterfalled.'
+            raise DiagnosticNonFatalError(errormsg)
+
         if len(sigmas) < max_waterfalled:
             self.value = np.min(sigmas)
         else:
