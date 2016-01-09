@@ -551,6 +551,11 @@ class MinSigmaWaterfalledDiagnostic(FloatDiagnostic):
     def get_diagnostic(self):
         max_waterfalled = 100
         groupsfn = os.path.join(self.sp_directory, "groups.txt.gz")
+
+        if not os.path.exists(groupsfn):
+            errormsg = 'SP groups file does not exist.'
+            raise DiagnosticNonFatalError(errormsg)
+
         sigmas = []
         for rank in [7, 6, 5, 4, 3]:
             groupsf = gzip.open(groupsfn,"r")
@@ -575,7 +580,13 @@ class NumRank0SPGroups(FloatDiagnostic):
     numrank_re = re.compile(r"Number of rank 0 groups: (?P<numrank>.*)\n")
 
     def get_diagnostic(self):
-        sp_summaryf = open(os.path.join(self.sp_directory,"spsummary.txt"))
+        sp_summary_fn = os.path.join(self.sp_directory,"spsummary.txt")
+
+        if not os.path.exists(sp_summary_fn):
+            errormsg = 'SP summary file does not exist.'
+            raise DiagnosticNonFatalError(errormsg)
+
+        sp_summaryf = open(sp_summary_fn)
         for line in sp_summaryf:
             m = self.numrank_re.search(line)
             if m:
@@ -590,7 +601,13 @@ class NumRank2SPGroups(FloatDiagnostic):
     numrank_re = re.compile(r"Number of rank 2 groups: (?P<numrank>.*)\n")
 
     def get_diagnostic(self):
-        sp_summaryf = open(os.path.join(self.sp_directory,"spsummary.txt"))
+        sp_summary_fn = os.path.join(self.sp_directory,"spsummary.txt")
+
+        if not os.path.exists(sp_summary_fn):
+            errormsg = 'SP summary file does not exist.'
+            raise DiagnosticNonFatalError(errormsg)
+
+        sp_summaryf = open(sp_summary_fn)
         for line in sp_summaryf:
             m = self.numrank_re.search(line)
             if m:
@@ -605,7 +622,13 @@ class NumRank3SPGroups(FloatDiagnostic):
     numrank_re = re.compile(r"Number of rank 3 groups: (?P<numrank>.*)\n")
 
     def get_diagnostic(self):
-        sp_summaryf = open(os.path.join(self.sp_directory,"spsummary.txt"))
+        sp_summary_fn = os.path.join(self.sp_directory,"spsummary.txt")
+
+        if not os.path.exists(sp_summary_fn):
+            errormsg = 'SP summary file does not exist.'
+            raise DiagnosticNonFatalError(errormsg)
+
+        sp_summaryf = open(sp_summary_fn)
         for line in sp_summaryf:
             m = self.numrank_re.search(line)
             if m:
@@ -620,7 +643,13 @@ class NumRank4SPGroups(FloatDiagnostic):
     numrank_re = re.compile(r"Number of rank 4 groups: (?P<numrank>.*)\n")
 
     def get_diagnostic(self):
-        sp_summaryf = open(os.path.join(self.sp_directory,"spsummary.txt"))
+        sp_summary_fn = os.path.join(self.sp_directory,"spsummary.txt")
+
+        if not os.path.exists(sp_summary_fn):
+            errormsg = 'SP summary file does not exist.'
+            raise DiagnosticNonFatalError(errormsg)
+
+        sp_summaryf = open(sp_summary_fn)
         for line in sp_summaryf:
             m = self.numrank_re.search(line)
             if m:
@@ -635,7 +664,13 @@ class NumRank5SPGroups(FloatDiagnostic):
     numrank_re = re.compile(r"Number of rank 5 groups: (?P<numrank>.*)\n")
 
     def get_diagnostic(self):
-        sp_summaryf = open(os.path.join(self.sp_directory,"spsummary.txt"))
+        sp_summary_fn = os.path.join(self.sp_directory,"spsummary.txt")
+
+        if not os.path.exists(sp_summary_fn):
+            errormsg = 'SP summary file does not exist.'
+            raise DiagnosticNonFatalError(errormsg)
+
+        sp_summaryf = open(sp_summary_fn)
         for line in sp_summaryf:
             m = self.numrank_re.search(line)
             if m:
@@ -650,7 +685,13 @@ class NumRank6SPGroups(FloatDiagnostic):
     numrank_re = re.compile(r"Number of rank 6 groups: (?P<numrank>.*)\n")
 
     def get_diagnostic(self):
-        sp_summaryf = open(os.path.join(self.sp_directory,"spsummary.txt"))
+        sp_summary_fn = os.path.join(self.sp_directory,"spsummary.txt")
+
+        if not os.path.exists(sp_summary_fn):
+            errormsg = 'SP summary file does not exist.'
+            raise DiagnosticNonFatalError(errormsg)
+
+        sp_summaryf = open(sp_summary_fn)
         for line in sp_summaryf:
             m = self.numrank_re.search(line)
             if m:
@@ -665,7 +706,13 @@ class NumRank7SPGroups(FloatDiagnostic):
     numrank_re = re.compile(r"Number of rank 7 groups: (?P<numrank>.*)\n")
 
     def get_diagnostic(self):
-        sp_summaryf = open(os.path.join(self.sp_directory,"spsummary.txt"))
+        sp_summary_fn = os.path.join(self.sp_directory,"spsummary.txt")
+
+        if not os.path.exists(sp_summary_fn):
+            errormsg = 'SP summary file does not exist.'
+            raise DiagnosticNonFatalError(errormsg)
+
+        sp_summaryf = open(sp_summary_fn)
         for line in sp_summaryf:
             m = self.numrank_re.search(line)
             if m:
