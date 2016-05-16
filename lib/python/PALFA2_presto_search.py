@@ -946,7 +946,7 @@ def search_job(job):
                 periodicity_search_pass(job,dmlist_forpass)
             if job.search_sp:
                 singlepulse_search_pass(job,dmlist_forpass)
-            if job.search_ffa:
+            if job.search_ffa and np.max(dmlist_forpass)<3266.4:
                 ffa_search_pass(job,dmlist_forpass)
             dmstrs += dmlist_forpass
 
@@ -972,6 +972,8 @@ def search_job(job):
         sift_singlepulse(job)
     if job.search_pdm:
         all_accel_cands = sift_periodicity(job,dmstrs)
+    if job.search_ffa:
+        sift_ffa(job)
 
     #####
     # Print some info useful for debugging
