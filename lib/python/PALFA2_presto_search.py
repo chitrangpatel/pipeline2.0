@@ -465,10 +465,11 @@ def main(filenms, workdir, resultsdir):
         clean_up(job)
 
     # Do search with zerodming
-    if config.searching.zerodm_periodicity or config.searching.zerodm_singlepulse:
+    if config.searching.zerodm_periodicity or config.searching.zerodm_singlepulse or config.zerodm_ffa:
         zerodm_job = set_up_job(filenms, workdir, resultsdir, zerodm=True, \
                                 search_pdm=config.searching.zerodm_periodicity, \
-                                search_sp=config.searching.zerodm_singlepulse) 
+                                search_sp=config.searching.zerodm_singlepulse, \
+                                search_ffa=config.searching.zerodm_ffa) ##### remove this line. not doing zero-dm-ing for ffa 
 
         # copy zaplist from non-zerodm job to zerodm job workdir
         zaplist = glob.glob(os.path.join(job.outputdir,'*.zaplist'))[0]
@@ -511,7 +512,7 @@ def main(filenms, workdir, resultsdir):
 
     
 def set_up_job(filenms, workdir, resultsdir, zerodm=False, \
-               search_pdm=True, search_sp=True):
+               search_pdm=True, search_sp=True, search_ffa=True):
     """Change to the working directory and set it up.
         Create a obs_info instance, set it up and return it.
     """
@@ -538,6 +539,7 @@ def set_up_job(filenms, workdir, resultsdir, zerodm=False, \
     # Set which searches to do
     job.search_pdm = search_pdm
     job.search_sp = search_sp
+    job.search_ffa = search_ffa
 
     # Create a directory to hold all the subbands
     if config.processing.use_pbs_subdir:
@@ -659,6 +661,34 @@ def singlepulse_search_pass(job,dmstrs):
     for basenm in basenms_forpass:
         try:
             shutil.move(basenm+".singlepulse", job.workdir)
+        except: pass
+
+def ffa_search_pass(job,dmstrs):
+    """ For a single pass in the dedispersion plan, 
+        run ffa.py on a batch of timeseries
+        in a job given a string list of DMs in pass.
+    """
+
+    basenms_forpass = []
+    for dmstr in dmstrs:
+        basenm = os.path.join(job.tempdir, job.basefilenm+"_DM"+dmstr)
+        basenms_forpass.append(basenm)
+
+    # Do the single-pulse search
+    dats_str = '.dat '.join(basenms_forpass) + '.dat'
+    if job.zerodm:
+        cmd = "single_pulse_search.py -b -p -m %f -t %f %s"%\ # run ffa.py
+              (config.searching.singlepulse_maxwidth, \
+               config.searching.singlepulse_threshold, dats_str)
+    else:
+        cmd = "single_pulse_search.py -p -m %f -t %f %s"%\ # run ffa.py
+              (config.searching.singlepulse_maxwidth, \
+               config.searching.singlepulse_threshold, dats_str)
+    job.singlepulse_time += timed_execute(cmd)
+
+    # Move .singlepulse and .inf files and delete .dat files
+    for basenm in basenms_forpass:
+        try:
             shutil.move(basenm+".inf", job.workdir)
         except: pass
 
