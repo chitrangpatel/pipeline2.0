@@ -689,24 +689,29 @@ def ffa_search_pass(job,dmstrs):
     """
 
     basenms_forpass = []
-    dmstrs = ffa_DMs(dmstrs)
+    # Do the FFA search for DMs upto 3265.
+    if np.max(dmstrs)<3266.4:
+        ffa_basenms_forpass = []
+        ffa_dmstrs = ffa_DMs(dmstrs)
+        for dmstr in ffa_dmstrs:
+            basenm = os.path.join(job.tempdir, job.basefilenm+"_DM"+dmstr)
+            ffa_basenms_forpass.append(basenm)
+
+        dats_str = '.dat '.join(ffa_basenms_forpass) + '.dat'
+        if job.zerodm:
+            cmd = "single_pulse_search.py -b -p -m %f -t %f %s"%\ # run ffa.py
+                  (config.searching.singlepulse_maxwidth, \
+                   config.searching.singlepulse_threshold, dats_str)
+        else:
+            cmd = "single_pulse_search.py -p -m %f -t %f %s"%\ # run ffa.py
+                  (config.searching.singlepulse_maxwidth, \
+                   config.searching.singlepulse_threshold, dats_str)
+        job.singlepulse_time += timed_execute(cmd)
+
+    # Move .singlepulse and .inf files and delete .dat files
     for dmstr in dmstrs:
         basenm = os.path.join(job.tempdir, job.basefilenm+"_DM"+dmstr)
         basenms_forpass.append(basenm)
-
-    # Do the single-pulse search
-    dats_str = '.dat '.join(basenms_forpass) + '.dat'
-    if job.zerodm:
-        cmd = "single_pulse_search.py -b -p -m %f -t %f %s"%\ # run ffa.py
-              (config.searching.singlepulse_maxwidth, \
-               config.searching.singlepulse_threshold, dats_str)
-    else:
-        cmd = "single_pulse_search.py -p -m %f -t %f %s"%\ # run ffa.py
-              (config.searching.singlepulse_maxwidth, \
-               config.searching.singlepulse_threshold, dats_str)
-    job.singlepulse_time += timed_execute(cmd)
-
-    # Move .singlepulse and .inf files and delete .dat files
     for basenm in basenms_forpass:
         try:
             shutil.move(basenm+".inf", job.workdir)
@@ -941,6 +946,8 @@ def search_job(job):
                 periodicity_search_pass(job,dmlist_forpass)
             if job.search_sp:
                 singlepulse_search_pass(job,dmlist_forpass)
+            if job.search_ffa:
+                ffa_search_pass(job,dmlist_forpass)
             dmstrs += dmlist_forpass
 
             # Clean up .dat files for pass
