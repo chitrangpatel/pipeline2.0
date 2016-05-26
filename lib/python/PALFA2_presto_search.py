@@ -698,17 +698,11 @@ def ffa_search_pass(job,dmstrs):
             ffa_basenms_forpass.append(basenm)
 
         dats_str = '.dat '.join(ffa_basenms_forpass) + '.dat'
-        if job.zerodm:
-            cmd = "single_pulse_search.py -b -p -m %f -t %f %s"%\ # run ffa.py
-                  (config.searching.singlepulse_maxwidth, \
-                   config.searching.singlepulse_threshold, dats_str)
-        else:
-            cmd = "single_pulse_search.py -p -m %f -t %f %s"%\ # run ffa.py
-                  (config.searching.singlepulse_maxwidth, \
-                   config.searching.singlepulse_threshold, dats_str)
-        job.singlepulse_time += timed_execute(cmd)
+        for datnm in dats_str:
+            cmd = "ffa.py %s"%datnm
+            job.ffa_time += timed_execute(cmd)
 
-    # Move .singlepulse and .inf files and delete .dat files
+    # Move .inf files
     for dmstr in dmstrs:
         basenm = os.path.join(job.tempdir, job.basefilenm+"_DM"+dmstr)
         basenms_forpass.append(basenm)
@@ -809,6 +803,10 @@ def sift_singlepulse(job):
             timed_execute("rate_spds.py --redirect-warnings --include-all *.spd")
 
         job.sp_grouping_time = time.time() - job.sp_grouping_time
+
+def sift_ffa(job):
+    ### run sifting command ###
+    job.ffa_sifting_time = time.time() - job.ffa_sifting_time
 
 def fold_periodicity_candidates(job,accel_cands):
     """ Fold a list of candidates from sifting, rate them, 
