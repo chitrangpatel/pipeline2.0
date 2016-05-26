@@ -236,6 +236,82 @@ def get_folding_command(cand, obs):
            (cand.candnum, cand.filename, cand.DM, outfilenm, nsub,
             npart, otheropts, N, Mp, Mdm, mask, foldfiles)
 
+def get_ffa_folding_command(cand, obs):
+    """
+    get_ffa_folding_command(cand, obs):
+        Return a command for prepfold for folding the subbands using
+            an obs_info instance, and a candidate instance that 
+            describes the observations and searches.
+    """
+    # Folding rules are same as those for folding accel cands.
+    outfilenm = obs.basefilenm+"_DM%s_ffa"%cand.DMstr
+
+    # Note:  the following calculations should probably only be done once,
+    #        but in general, these calculation are effectively instantaneous
+    #        compared to the folding itself
+    if config.searching.fold_rawdata:
+        # Fold raw data
+        foldfiles = obs.filenmstr
+        mask = "-mask %s" % (obs.basefilenm + "_rfifind.mask")
+    else:
+        if config.searching.use_subbands:
+            # Fold the subbands
+            subdms = get_all_subdms(obs.ddplans)
+            subfiles = find_closest_subbands(obs, subdms, cand.DM)
+            foldfiles = subfiles
+            mask = ""
+        else:  # Folding the downsampled PSRFITS files instead
+            #
+            # TODO: Apply mask!?
+            #
+            mask = ""
+            hidms = [x.lodm for x in obs.ddplans[1:]] + [2000]
+            dfacts = [x.downsamp for x in obs.ddplans]
+            for hidm, dfact in zip(hidms, dfacts):
+                if cand.DM < hidm:
+                    downsamp = dfact
+                    break
+            if downsamp==1:
+                foldfiles = obs.filenmstr
+            else:
+                dsfiles = [] 
+                for f in obs.filenames:
+                    fbase = f.rstrip(".fits")
+                    dsfiles.append(fbase+"_DS%d.fits"%downsamp)
+                foldfiles = ' '.join(dsfiles)
+    p = 1.0 / cand.f
+    #p = cand.p
+    if p < 0.5:
+        N = 100
+        npart = 30
+        otheropts = "-nosearch"
+    elif p < 10.0:
+        N = 200
+        npart = 30
+        otheropts = "-nosearch" 
+    else:
+        N = 200
+        npart = 20
+        otheropts = "-nosearch"
+
+    #otheropts += " -fixchi" if config.searching.use_fixchi else ""
+
+    # If prepfold is instructed to use more subbands than there are rows in the PSRFITS file
+    # it doesn't use any data when folding since the amount of data for each part is
+    # shorter than the PSRFITS row. However, PRESTO doesn't break up rows.
+    # Set npart to the number of rows in the PSRFITS file.
+    if npart > obs.numrows:
+        npart = obs.numrows
+
+    # Get number of subbands to use
+    if obs.backend.lower() == 'pdev':
+        nsub = 96
+    else:
+        nsub = 64
+    return "prepfold -noxwin -dm %.2f -p %f -o %s " \
+                "-nsub %d -npart %d %s -n %d %s %s" % \
+           (cand.DM, p, outfilenm, nsub,
+            npart, otheropts, N, mask, foldfiles)
 
 class obs_info:
     """
@@ -250,6 +326,7 @@ class obs_info:
         # which searches to perform
         self.search_pdm = True
         self.search_sp = True
+        self.search_ffa = True
 
         self.filenms = filenms
         self.filenmstr = ' '.join(self.filenms)
@@ -294,8 +371,10 @@ class obs_info:
         self.hostname = socket.gethostname()
         # The fraction of the data recommended to be masked by rfifind
         self.masked_fraction = 0.0
-        # The number of candidates folded
-        self.num_cands_folded = 0
+        # The number of accelsearch candidates folded
+        self.num_accel_cands_folded = 0
+        # The number of FFA candidates folded
+        self.num_ffa_cands_folded = 0
         # Initialize our timers
         self.rfifind_time = 0.0
         self.downsample_time = 0.0
@@ -305,8 +384,10 @@ class obs_info:
         self.lo_accelsearch_time = 0.0
         self.hi_accelsearch_time = 0.0
         self.singlepulse_time = 0.0
+        self.ffa_time = 0.0
         self.sp_grouping_time = 0.0
         self.sifting_time = 0.0
+        self.ffa_sifting_time = 0.0
         self.folding_time = 0.0
         self.zerodm_time = 0.0
         self.total_time = 0.0
@@ -370,8 +451,10 @@ class obs_info:
                           (self.total_time, self.total_time/3600.0))
         report_file.write("Fraction of data masked:  %.2f%%\n"%\
                           (self.masked_fraction*100.0))
-        report_file.write("Number of candidates folded: %d\n"%\
-                          self.num_cands_folded)
+        report_file.write("Number of Accelsearch candidates folded: %d\n"%\
+                          self.num_accel_cands_folded)
+        report_file.write("Number of FFA candidates folded: %d\n"%\
+                          self.num_ffa_cands_folded)
         report_file.write("---------------------------------------------------------\n")
         report_file.write("          rfifind time = %7.1f sec (%5.2f%%)\n"%\
                           (self.rfifind_time, self.rfifind_time/self.total_time*100.0))
@@ -394,8 +477,12 @@ class obs_info:
                           (self.lo_accelsearch_time, self.lo_accelsearch_time/self.total_time*100.0))
         report_file.write("   hi-accelsearch time = %7.1f sec (%5.2f%%)\n"%\
                           (self.hi_accelsearch_time, self.hi_accelsearch_time/self.total_time*100.0))
+        report_file.write("              FFA time = %7.1f sec (%5.2f%%)\n"%\
+                          (self.ffa_time, self.ffa_time/self.total_time*100.0))
         report_file.write("          sifting time = %7.1f sec (%5.2f%%)\n"%\
                           (self.sifting_time, self.sifting_time/self.total_time*100.0))
+        report_file.write("      FFA sifting time = %7.1f sec (%5.2f%%)\n"%\
+                          (self.ffa_sifting_time, self.ffa_sifting_time/self.total_time*100.0))
         report_file.write("          folding time = %7.1f sec (%5.2f%%)\n"%\
                           (self.folding_time, self.folding_time/self.total_time*100.0))
         if self.zerodm_time:
@@ -808,22 +895,34 @@ def sift_ffa(job):
     ### run sifting command ###
     job.ffa_sifting_time = time.time() - job.ffa_sifting_time
 
-def fold_periodicity_candidates(job,accel_cands):
-    """ Fold a list of candidates from sifting, rate them, 
+    return ffa_cands
+
+def fold_periodicity_candidates(job,accel_cands, ffa_cands):
+    """ Fold a list of candidates from sifting accel and ffa cands, rate them, 
         and write candidate attributes to file.
     """
     # Fold the best candidates
-    cands_folded = 0
+    accel_cands_folded = 0
     for cand in accel_cands:
-        print "At cand %s" % str(cand)
-        if cands_folded == config.searching.max_cands_to_fold:
+        print "At accelcand %s" % str(cand)
+        if accel_cands_folded == config.searching.max_accel_cands_to_fold:
             break
         if cand.sigma >= config.searching.to_prepfold_sigma:
-            print "...folding"
+            print "...folding accelcand"
             job.folding_time += timed_execute(get_folding_command(cand, job))
-            cands_folded += 1
-    job.num_cands_folded = cands_folded
+            accel_cands_folded += 1
+    job.num_accel_cands_folded = accel_cands_folded
     
+    ffa_cands_folded = 0
+    for cand in ffa_cands:
+        print "At FFA cand %s" % str(cand)
+        if ffa_cands_folded == config.searching.max_ffa_cands_to_fold:
+            break
+        if cand.sigma >= config.searching.to_prepfold_sigma:
+            print "...folding FFA cand"
+            job.folding_time += timed_execute(get_ffa_folding_command(cand, job))
+            ffa_cands_folded += 1
+    job.num_ffa_cands_folded = ffa_cands_folded
     # Set up theano compile dir (UBC_AI rating uses theano)
     theano_compiledir = os.path.join(job.tempdir,'theano_compile')
     os.mkdir(theano_compiledir)
@@ -878,7 +977,7 @@ def search_job(job):
 
     # Use whatever *_radar_samples.txt is found in the current directory
     if config.searching.use_radar_clipping:
-        radar_list = glob.glob("*_radar_samples.txt")[0]
+        radar_list = glob.glob("*merged_radar_samples.txt")[0]
         os.putenv('CLIPBINSFILE',os.path.join(job.workdir,radar_list))
         print "Using %s as radar samples list" % radar_list
 
@@ -971,7 +1070,7 @@ def search_job(job):
     if job.search_pdm:
         all_accel_cands = sift_periodicity(job,dmstrs)
     if job.search_ffa:
-        sift_ffa(job)
+        ffa_cands = sift_ffa(job)
 
     #####
     # Print some info useful for debugging
@@ -987,8 +1086,8 @@ def search_job(job):
     sys.stdout.flush()
     #####
 
-    if job.search_pdm:
-        fold_periodicity_candidates(job,all_accel_cands)
+    if job.search_pdm and job.search_ffa:
+        fold_periodicity_candidates(job,all_accel_cands, ffa_cands)
 
     # Print some info useful for debugging
     print "Contents of workdir (%s) after folding: " % job.workdir
