@@ -25,6 +25,7 @@ matplotlib.use('agg') #Use AGG (png) backend to plot
 import matplotlib.pyplot as plt
 import sifting  
 import Group_sp_events
+import ffa_final
 
 import datafile
 import config.searching
@@ -279,13 +280,12 @@ def get_ffa_folding_command(cand, obs):
                     fbase = f.rstrip(".fits")
                     dsfiles.append(fbase+"_DS%d.fits"%downsamp)
                 foldfiles = ' '.join(dsfiles)
-    p = 1.0 / cand.f
     #p = cand.p
-    if p < 0.5:
+    if cand.p < 0.5:
         N = 100
         npart = 30
         otheropts = "-nosearch"
-    elif p < 10.0:
+    elif cand.p < 10.0:
         N = 200
         npart = 30
         otheropts = "-nosearch" 
@@ -310,7 +310,7 @@ def get_ffa_folding_command(cand, obs):
         nsub = 64
     return "prepfold -noxwin -dm %.2f -p %f -o %s " \
                 "-nsub %d -npart %d %s -n %d %s %s" % \
-           (cand.DM, p, outfilenm, nsub,
+           (cand.DM, cand.p, outfilenm, nsub,
             npart, otheropts, N, mask, foldfiles)
 
 class obs_info:
@@ -891,8 +891,8 @@ def sift_singlepulse(job):
 
         job.sp_grouping_time = time.time() - job.sp_grouping_time
 
-def sift_ffa(job):
-    ### run sifting command ###
+def sift_ffa(job): 
+    ffa_cands = final_sifting_ffa(job.basefilenm, glob.glob(job.basefilenm+"*_dm*_cands.ffa"), job.basefilenm+".ffacands", job.zaplist)    
     job.ffa_sifting_time = time.time() - job.ffa_sifting_time
 
     return ffa_cands
@@ -1157,7 +1157,8 @@ def clean_up(job):
                     "_bestprof.tgz",
                     "_pfd_rat.tgz",
                     "_spd.tgz",
-                    "_spd_rat.tgz"]
+                    "_spd_rat.tgz",
+                    "_cands.ffa.tgz"]
     tar_globs = ["*_ACCEL_%d"%config.searching.lo_accel_zmax,
                  "*_ACCEL_%d"%config.searching.hi_accel_zmax,
                  "*_ACCEL_%d.cand"%config.searching.lo_accel_zmax,
@@ -1168,7 +1169,8 @@ def clean_up(job):
                  "*.pfd.bestprof",
                  "*.pfd.rat",
                  "*.spd",
-                 "*.spd.rat"]
+                 "*.spd.rat",
+                 "*_dm*_cands.ffa"]
 
     print "Tarring up results"
     for (tar_suffix, tar_glob) in zip(tar_suffixes, tar_globs):
