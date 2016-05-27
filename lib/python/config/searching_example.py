@@ -50,6 +50,7 @@ use_fixchi              = False # Use -fixchi option in prepfold
 # else:
 #     numsub  = 0      # Defaults to number of channels
 
+
 # Sifting specific parameters (don't touch without good reason!)
 sifting_sigma_threshold = to_prepfold_sigma-1.0  
                                  # incoherent power threshold (sigma)

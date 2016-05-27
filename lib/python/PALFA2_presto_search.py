@@ -786,7 +786,7 @@ def ffa_search_pass(job,dmstrs):
 
         dats_str = '.dat '.join(ffa_basenms_forpass) + '.dat'
         for datnm in dats_str:
-            cmd = "ffa.py %s"%datnm
+            cmd = "ffa.py %s"%(datnm)
             job.ffa_time += timed_execute(cmd)
 
     # Move .inf files
@@ -892,7 +892,7 @@ def sift_singlepulse(job):
         job.sp_grouping_time = time.time() - job.sp_grouping_time
 
 def sift_ffa(job): 
-    ffa_cands = final_sifting_ffa(job.basefilenm, glob.glob(job.basefilenm+"*_dm*_cands.ffa"), job.basefilenm+".ffacands", job.zaplist)    
+    ffa_cands = final_sifting_ffa(job.basefilenm, glob.glob(job.basefilenm+"*_DM*_cands.ffa"), job.basefilenm+".ffacands", job.zaplist)    
     job.ffa_sifting_time = time.time() - job.ffa_sifting_time
 
     return ffa_cands
@@ -1170,7 +1170,7 @@ def clean_up(job):
                  "*.pfd.rat",
                  "*.spd",
                  "*.spd.rat",
-                 "*_dm*_cands.ffa"]
+                 "*_DM*_cands.ffa"]
 
     print "Tarring up results"
     for (tar_suffix, tar_glob) in zip(tar_suffixes, tar_globs):
