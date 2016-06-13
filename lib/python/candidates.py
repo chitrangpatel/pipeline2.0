@@ -45,7 +45,7 @@ class PeriodicityCandidate(upload.Uploadable,upload.FTPable):
     # how to compare them (as values)
     to_cmp = {'header_id': '%d', \
               'cand_num': '%d', \
-              'bary_freq': '%.12g', \
+              'topo_freq': '%.12g', \
               'bary_freq': '%.12g', \
               'topo_period': '%.12g', \
               'bary_period': '%.12g', \

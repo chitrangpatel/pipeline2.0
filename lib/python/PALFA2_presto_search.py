@@ -755,7 +755,7 @@ def ffa_DMs(dmstrs):
        DM steps of 5 upto a DM of 3000.   
     """
     dmstrs_for_ffa = []
-    dmstrs = np.asarray(dmstrs)
+    dmstrs = np.asarray(dmstrs).astype('float')
     dmstrs_1 = dmstrs[dmstrs<1826.4]
     dmstrs_1 = dmstrs_1[dmstrs_1%5<1]
     dms_tmp = np.unique(dmstrs_1.astype('int'))
@@ -763,7 +763,7 @@ def ffa_DMs(dmstrs):
         dmstrs_for_ffa.append(dmstrs_1[np.argmin(np.abs(dmstrs_1-dmstr))])
     dmstrs_2 = dmstrs[dmstrs<3001.0]
     dmstrs_2 = dmstrs_2[dmstrs_2>=1826.4]
-    dmstrs_2 = dmstrs_2[dmstrs_1%5<2]
+    dmstrs_2 = dmstrs_2[dmstrs_2%5<2]
     dms_tmp = np.unique(dmstrs_2.astype('int'))
     for dmstr in dms_tmp:
         dmstrs_for_ffa.append(dmstrs_2[np.argmin(np.abs(dmstrs_2-dmstr))])
