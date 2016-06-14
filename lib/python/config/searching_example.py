@@ -15,6 +15,7 @@ sp_grouping           = False
 # set the appropriate option to True
 zerodm_periodicity    = False
 zerodm_singlepulse    = False
+zerodm_ffa            = False
 
 # Tunable parameters for searching and folding
 # (you probably don't need to tune any of them)
@@ -24,7 +25,8 @@ singlepulse_threshold   = 5.0  # threshold SNR for candidate determination
 singlepulse_plot_SNR    = 6.0  # threshold SNR for singlepulse plot
 singlepulse_maxwidth    = 0.1  # max pulse width in seconds
 to_prepfold_sigma       = 6.0  # incoherent sum significance to fold candidates
-max_cands_to_fold       = 100  # Never fold more than this many candidates
+max_accel_cands_to_fold = 200  # Never fold more than this many candidates
+max_ffa_cands_to_fold   = 200  # Never fold more than this many candidates
 numhits_to_fold         = 2    # Number of DMs with a detection needed to fold
 low_DM_cutoff           = 2.0  # Lowest DM to consider as a "real" pulsar
 lo_accel_numharm        = 16   # max harmonics
