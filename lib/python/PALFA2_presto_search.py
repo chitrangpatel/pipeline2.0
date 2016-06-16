@@ -760,13 +760,13 @@ def ffa_DMs(dmstrs):
     dmstrs_1 = dmstrs_1[dmstrs_1%5<1]
     dms_tmp = np.unique(dmstrs_1.astype('int'))
     for dmstr in dms_tmp:
-        dmstrs_for_ffa.append(dmstrs_1[np.argmin(np.abs(dmstrs_1-dmstr))])
+        dmstrs_for_ffa.append(str(dmstrs_1[np.argmin(np.abs(dmstrs_1-dmstr))]))
     dmstrs_2 = dmstrs[dmstrs<3001.0]
     dmstrs_2 = dmstrs_2[dmstrs_2>=1826.4]
     dmstrs_2 = dmstrs_2[dmstrs_2%5<2]
     dms_tmp = np.unique(dmstrs_2.astype('int'))
     for dmstr in dms_tmp:
-        dmstrs_for_ffa.append(dmstrs_2[np.argmin(np.abs(dmstrs_2-dmstr))])
+        dmstrs_for_ffa.append(str(dmstrs_2[np.argmin(np.abs(dmstrs_2-dmstr))]))
     return dmstrs_for_ffa
 
 def ffa_search_pass(job,dmstrs):
@@ -777,7 +777,7 @@ def ffa_search_pass(job,dmstrs):
 
     basenms_forpass = []
     # Do the FFA search for DMs upto 3265.
-    if np.max(dmstrs)<3266.4:
+    if np.max(map(float, dmstrs))<3266.4:
         ffa_basenms_forpass = []
         ffa_dmstrs = ffa_DMs(dmstrs)
         for dmstr in ffa_dmstrs:
