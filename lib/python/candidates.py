@@ -30,6 +30,7 @@ import pipeline_utils
 import upload
 import CornellFTP
 from formats import accelcands
+from formats import ffacands
 import ratings2.rating_value
 import ratings2.utils
 
@@ -66,10 +67,33 @@ class PeriodicityCandidate(upload.Uploadable,upload.FTPable):
               'sifting_period': '%.12g', \
               'sifting_dm': '%.12g'}
 
+    to_cmp_ffa = {'header_id': '%d', \
+              'cand_num': '%d', \
+              'topo_freq': '%.12g', \
+              'bary_freq': 'NULL', \
+              'topo_period': '%.12g', \
+              'bary_period': 'NULL', \
+              'topo_f_dot': 'NULL', \
+              'bary_f_dot': 'NULL', \
+              'dm': '%.12g', \
+              'snr': '%.12g', \
+              'coherent_power': 'NULL', \
+              'incoherent_power': 'NULL', \
+              'num_hits': '%d', \
+              'num_harmonics': '%d', \
+              'institution': '%s', \
+              'pipeline': '%s', \
+              'versionnum': '%s', \
+              'sigma': 'NULL', \
+              'prepfold_sigma': '%.12g', \
+              'rescaled_prepfold_sigma': '%.12g', \
+              'sifting_period': '%.12g', \
+              'sifting_dm': '%.12g'}
+
     def __init__(self, cand_num, pfd , snr, coherent_power, \
                         incoherent_power, num_hits, num_harmonics, \
                         versionnum, sigma, sifting_period, sifting_dm, \
-                        cand_attribs, header_id=None):
+                        cand_attribs, ffacand=False, header_id=None):
         self.header_id = header_id # Header ID from database
         self.cand_num = cand_num # Unique identifier of candidate within beam's 
                                  # list of candidates; Candidate's position in
@@ -254,12 +278,20 @@ class PeriodicityCandidate(upload.Uploadable,upload.FTPable):
             desc = [d[0] for d in db.cursor.description]
             r = dict(zip(desc, rows[0]))
             errormsgs = []
-            for var, fmt in self.to_cmp.iteritems():
-                local = (fmt % getattr(self, var)).lower()
-                fromdb = (fmt % r[var]).lower()
-                if local != fromdb:
-                    errormsgs.append("Values for '%s' don't match (local: %s, DB: %s)" % \
-                                        (var, local, fromdb))
+            if self.ffacand:
+                for var, fmt in self.to_cmp_ffa.iteritems():
+                    local = (fmt % getattr(self, var)).lower()
+                    fromdb = (fmt % r[var]).lower()
+                    if local != fromdb:
+                        errormsgs.append("Values for '%s' don't match (local: %s, DB: %s)" % \
+                                            (var, local, fromdb))
+            else:            
+                for var, fmt in self.to_cmp.iteritems():
+                    local = (fmt % getattr(self, var)).lower()
+                    fromdb = (fmt % r[var]).lower()
+                    if local != fromdb:
+                        errormsgs.append("Values for '%s' don't match (local: %s, DB: %s)" % \
+                                            (var, local, fromdb))
             if errormsgs:
                 errormsg = "Candidate doesn't match what was uploaded to the DB:"
                 for msg in errormsgs:
@@ -770,13 +802,16 @@ def get_candidates(versionnum, directory, header_id=None, timestamp_mjd=None, in
     """
     # find *.accelcands file    
     candlists = glob.glob(os.path.join(directory, "*.accelcands"))
+    ffa_candlists = glob.glob(os.path.join(directory, "*cands.ffa"))
                                                 
-    if len(candlists) != 1:
-        raise PeriodicityCandidateError("Wrong number of candidate lists found (%d)!" % \
-                                            len(candlists))
+    if len(candlists) != 1 or len(ffa_candlists) != 1:
+        raise PeriodicityCandidateError("Wrong number of candidate lists found accel" \
+                                        "candlists: (%d) and ffa candlists: (%d)" % \
+                                            (len(candlists)), len(ffa_candlists))
 
     # Get list of candidates from *.accelcands file
     candlist = accelcands.parse_candlist(candlists[0])
+    ffa_candlist = ffacands.parse_candlist(ffa_candlists[0])
     # find the search_params.txt file
     paramfn = os.path.join(directory, 'search_params.txt')
     if os.path.exists(paramfn):
@@ -790,6 +825,10 @@ def get_candidates(versionnum, directory, header_id=None, timestamp_mjd=None, in
     foldedcands = foldedcands[:params['max_cands_to_fold']]
     foldedcands.sort(reverse=True) # Sort by descending sigma
 
+    ffa_foldedcands = [c for c in ffa_candlist] 
+    #                if c.snr > params['ffa_snr']]# need something for ffa
+    ffa_foldedcands = ffa_foldedcands[:params['max_ffa_cands_to_fold']]
+    ffa_foldedcands.sort(reverse=True) # Sort by descending snr
     # Open attribute file
     attrib_fn = os.path.join(directory, 'candidate_attributes.txt')
     attribs = np.loadtxt(attrib_fn,dtype='S')
@@ -797,7 +836,7 @@ def get_candidates(versionnum, directory, header_id=None, timestamp_mjd=None, in
     # Create temporary directory
     tempdir = tempfile.mkdtemp(suffix="_tmp", prefix="PALFA_pfds_")
 
-    if foldedcands:
+    if foldedcands or ffa_foldedcands:
 
         pfd_tarfns = glob.glob(os.path.join(directory, "*_pfd.tgz"))
         if len(pfd_tarfns) != 1:
@@ -847,7 +886,34 @@ def get_candidates(versionnum, directory, header_id=None, timestamp_mjd=None, in
             cand = PeriodicityCandidate(ii+1, pfd, c.snr, \
                                     c.cpow, c.ipow, len(c.dmhits), \
                                     c.numharm, versionnum, c.sigma, \
-                                    c.period, c.dm, cand_attribs, header_id=header_id)
+                                    c.period, c.dm, cand_attribs, ffacands=False, \
+                                    header_id=header_id)
+        except Exception:
+            raise PeriodicityCandidateError("PeriodicityCandidate could not be " \
+                                            "created (%s)!" % pfdfn)
+        pfd_size = dict(pfd_list)[pfdfn]
+        cand.add_dependent(PeriodicityCandidatePFD(pfdfn, pfd_size, remote_pfd_dir=remote_pfd_dir))
+        cand.add_dependent(PeriodicityCandidatePNG(pngfn))
+
+        ratvals = ratings2.rating_value.read_file(ratfn)
+        cand.add_dependent(PeriodicityCandidateRating(ratvals,inst_cache=inst_cache))
+        cands.append(cand)
+        
+    for ii, c in enumerate(ffa_foldedcands):
+        basefn = "%s_FFA_Cand_%d" % (c.ffafile.replace("_cands.ffa",""), c.candnum)
+        pfdfn = os.path.join(pfd_tempdir, basefn+".pfd")
+        pngfn = os.path.join(directory, basefn+".pfd.png")
+        ratfn = os.path.join(tempdir, basefn+".pfd.rat")
+
+        pfd = prepfold.pfd(pfdfn)
+        cand_attribs = dict(attribs[attribs[:,0] == basefn+".pfd"][:,1:])
+        
+        try:
+            cand = PeriodicityCandidate(ii+1, pfd, c.snr, \
+                                    c.cpow, c.ipow, len(c.dmhits), \
+                                    c.numharm, versionnum, c.sigma, \
+                                    c.period, c.dm, cand_attribs, ffacands=True, \
+                                    header_id=header_id)
         except Exception:
             raise PeriodicityCandidateError("PeriodicityCandidate could not be " \
                                             "created (%s)!" % pfdfn)
