@@ -24,7 +24,7 @@ import matplotlib
 matplotlib.use('agg') #Use AGG (png) backend to plot
 import matplotlib.pyplot as plt
 import sifting  
-import Group_sp_events
+#import Group_sp_events
 import ffa_final
 
 import datafile
@@ -881,10 +881,11 @@ def sift_singlepulse(job):
         #Group_sp_events.main()
         cmd = "rratrap.py --use-configfile --use-DDplan --inffile %s *.singlepulse" % \
               (job.basefilenm + "_rfifind.inf") 
+        job.sp_grouping_time += timed_execute(cmd)
 
         cmd = "make_spd.py --groupsfile groups.txt --maskfile %s --bandpass %s *.singlepulse" % \
               (job.basefilenm + "_rfifind.mask", job.filenmstr)
-        timed_execute(cmd)
+        job.sp_grouping_time += timed_execute(cmd)
 
         timed_execute("gzip groups.txt")
 
@@ -894,7 +895,7 @@ def sift_singlepulse(job):
         job.sp_grouping_time = time.time() - job.sp_grouping_time
 
 def sift_ffa(job): 
-    ffa_cands = final_sifting_ffa(job.basefilenm, glob.glob(job.basefilenm+"*_DM*_cands.ffa"), job.basefilenm+".ffacands", job.zaplist)    
+    ffa_cands = ffa_final.final_sifting_ffa(job.basefilenm, glob.glob(job.basefilenm+"*_DM*_cands.ffa"), job.basefilenm+".ffacands", job.zaplist)    
     job.ffa_sifting_time = time.time() - job.ffa_sifting_time
 
     return ffa_cands

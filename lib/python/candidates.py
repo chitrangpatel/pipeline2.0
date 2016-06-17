@@ -802,7 +802,7 @@ def get_candidates(versionnum, directory, header_id=None, timestamp_mjd=None, in
     """
     # find *.accelcands file    
     candlists = glob.glob(os.path.join(directory, "*.accelcands"))
-    ffa_candlists = glob.glob(os.path.join(directory, "*cands.ffa"))
+    ffa_candlists = glob.glob(os.path.join(directory, "*.ffacands"))
                                                 
     if len(candlists) != 1 or len(ffa_candlists) != 1:
         raise PeriodicityCandidateError("Wrong number of candidate lists found accel" \
@@ -900,7 +900,7 @@ def get_candidates(versionnum, directory, header_id=None, timestamp_mjd=None, in
         cands.append(cand)
         
     for ii, c in enumerate(ffa_foldedcands):
-        basefn = "%s_FFA_Cand_%d" % (c.ffafile.replace("_cands.ffa",""), c.candnum)
+        basefn = "%s_FFA_Cand_%d" % (c.ffafile.replace(".ffacands",""), c.candnum)
         pfdfn = os.path.join(pfd_tempdir, basefn+".pfd")
         pngfn = os.path.join(directory, basefn+".pfd.png")
         ratfn = os.path.join(tempdir, basefn+".pfd.rat")
