@@ -878,10 +878,12 @@ def sift_singlepulse(job):
     # Do singlepulse grouping (Chen Karako's code) and waterfalling (Chitrang Patel's code) analysis
     if config.searching.sp_grouping and job.masked_fraction < 0.2:
         job.sp_grouping_time = time.time()
-        Group_sp_events.main()
+        #Group_sp_events.main()
+        cmd = "rratrap.py --use-configfile --use-DDplan --inffile %s *.singlepulse" % \
+              (job.basefilenm + "_rfifind.inf") 
 
-        cmd = "sp_pipeline.py --infile %s --groupsfile groups.txt --mask %s %s *.singlepulse" % \
-              (job.basefilenm + "_rfifind.inf", job.basefilenm + "_rfifind.mask", job.filenmstr)
+        cmd = "make_spd.py --groupsfile groups.txt --maskfile %s --bandpass %s *.singlepulse" % \
+              (job.basefilenm + "_rfifind.mask", job.filenmstr)
         timed_execute(cmd)
 
         timed_execute("gzip groups.txt")
