@@ -32,11 +32,11 @@ low_DM_cutoff           = 2.0  # Lowest DM to consider as a "real" pulsar
 lo_accel_numharm        = 16   # max harmonics
 lo_accel_sigma          = 2.0  # threshold gaussian significance
 lo_accel_zmax           = 0    # bins
-lo_accel_flo            = 2.0  # Hz
+lo_accel_flo            = 1.0  # Hz
 hi_accel_numharm        = 8    # max harmonics
 hi_accel_sigma          = 3.0  # threshold gaussian significance
-hi_accel_zmax           = 50   # bins
-hi_accel_flo            = 1.0  # Hz
+hi_accel_zmax           = 150   # bins
+hi_accel_flo            = 0.5  # Hz
 low_T_to_search         = 20.0 # sec
 use_fixchi              = False # Use -fixchi option in prepfold
 

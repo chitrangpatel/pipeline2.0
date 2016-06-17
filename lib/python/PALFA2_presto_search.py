@@ -552,7 +552,7 @@ def main(filenms, workdir, resultsdir):
         clean_up(job)
 
     # Do search with zerodming
-    if config.searching.zerodm_periodicity or config.searching.zerodm_singlepulse or config.zerodm_ffa:
+    if config.searching.zerodm_periodicity or config.searching.zerodm_singlepulse or config.searching.zerodm_ffa:
         zerodm_job = set_up_job(filenms, workdir, resultsdir, zerodm=True, \
                                 search_pdm=config.searching.zerodm_periodicity, \
                                 search_sp=config.searching.zerodm_singlepulse, \
