@@ -822,7 +822,7 @@ def get_candidates(versionnum, directory, header_id=None, timestamp_mjd=None, in
     minsigma = params['to_prepfold_sigma']
     foldedcands = [c for c in candlist \
                     if c.sigma > params['to_prepfold_sigma']]
-    foldedcands = foldedcands[:params['max_cands_to_fold']]
+    foldedcands = foldedcands[:params['max_accel_cands_to_fold']]
     foldedcands.sort(reverse=True) # Sort by descending sigma
 
     ffa_foldedcands = [c for c in ffa_candlist] 

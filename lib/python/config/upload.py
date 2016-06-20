@@ -20,12 +20,12 @@ def version_num():
 
 # Whether to upload zerodm candidates to Cornell DB
 upload_zerodm_periodicity = False
-upload_zerodm_singlepulse = False
+upload_zerodm_singlepulse = True
 
 # Directory on the FTP server to upload PFDs and singlepulse files (do not change unless asked by Adam)
-pfd_ftp_dir = 'pfd/PRESTO3'
-spd_ftp_dir = 'dummy'
-sp_ftp_dir = 'singlePulse/PRESTO3'
+pfd_ftp_dir = 'pfd6/PRESTO3'
+spd_ftp_dir = 'spd2/PRESTO3'
+sp_ftp_dir = 'singlePulse5/PRESTO3'
 
 import upload_check
 upload_check.upload.populate_configs(locals())
