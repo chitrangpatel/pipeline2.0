@@ -147,6 +147,7 @@ def set_up():
 def search(fns, workdir, resultsdir):
     # Search the data
     print "Go-Go-Gadget pulsar search..."
+    print sys.path
     import PALFA2_presto_search
     PALFA2_presto_search.main(fns, workdir, resultsdir)
     
