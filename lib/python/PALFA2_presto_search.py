@@ -748,6 +748,7 @@ def singlepulse_search_pass(job,dmstrs):
     for basenm in basenms_forpass:
         try:
             shutil.move(basenm+".singlepulse", job.workdir)
+            shutil.move(basenm+".inf", job.workdir)
         except: pass
 
 def ffa_DMs(dmstrs):
@@ -788,15 +789,6 @@ def ffa_search_pass(job,dmstrs):
         for datnm in dats_str:
             cmd = "ffa.py %s"%(datnm)
             job.ffa_time += timed_execute(cmd)
-
-    # Move .inf files
-    for dmstr in dmstrs:
-        basenm = os.path.join(job.tempdir, job.basefilenm+"_DM"+dmstr)
-        basenms_forpass.append(basenm)
-    for basenm in basenms_forpass:
-        try:
-            shutil.move(basenm+".inf", job.workdir)
-        except: pass
 
 def sift_periodicity(job,dmstrs):
     # Sift through the candidates to choose the best to fold
@@ -1042,12 +1034,12 @@ def search_job(job):
             
             # Search all the new DMs
             dmlist_forpass = ddplan.dmlist[passnum]
+            if job.search_ffa and np.max(map(float, dmlist_forpass))<3266.4:
+                ffa_search_pass(job,dmlist_forpass)
             if job.search_pdm:
                 periodicity_search_pass(job,dmlist_forpass)
             if job.search_sp:
                 singlepulse_search_pass(job,dmlist_forpass)
-            if job.search_ffa and np.max(dmlist_forpass)<3266.4:
-                ffa_search_pass(job,dmlist_forpass)
             dmstrs += dmlist_forpass
 
             # Clean up .dat files for pass
@@ -1068,12 +1060,12 @@ def search_job(job):
                         shutil.move(sub, os.path.join(job.workdir, 'subbands'))
 
 
-    if job.search_sp:
-        sift_singlepulse(job)
-    if job.search_pdm:
-        all_accel_cands = sift_periodicity(job,dmstrs)
     if job.search_ffa:
         ffa_cands = sift_ffa(job)
+    if job.search_pdm:
+        all_accel_cands = sift_periodicity(job,dmstrs)
+    if job.search_sp:
+        sift_singlepulse(job)
 
     #####
     # Print some info useful for debugging
