@@ -761,13 +761,13 @@ def ffa_DMs(dmstrs):
     dmstrs_1 = dmstrs_1[dmstrs_1%5<1]
     dms_tmp = np.unique(dmstrs_1.astype('int'))
     for dmstr in dms_tmp:
-        dmstrs_for_ffa.append(str(dmstrs_1[np.argmin(np.abs(dmstrs_1-dmstr))]))
+        dmstrs_for_ffa.append('%0.2f'%dmstrs_1[np.argmin(np.abs(dmstrs_1-dmstr))])
     dmstrs_2 = dmstrs[dmstrs<3001.0]
     dmstrs_2 = dmstrs_2[dmstrs_2>=1826.4]
     dmstrs_2 = dmstrs_2[dmstrs_2%5<2]
     dms_tmp = np.unique(dmstrs_2.astype('int'))
     for dmstr in dms_tmp:
-        dmstrs_for_ffa.append(str(dmstrs_2[np.argmin(np.abs(dmstrs_2-dmstr))]))
+        dmstrs_for_ffa.append('%0.2f'%dmstrs_2[np.argmin(np.abs(dmstrs_2-dmstr))])
     return dmstrs_for_ffa
 
 def ffa_search_pass(job,dmstrs):
@@ -776,19 +776,18 @@ def ffa_search_pass(job,dmstrs):
         in a job given a string list of DMs in pass.
     """
 
-    basenms_forpass = []
     # Do the FFA search for DMs upto 3265.
-    if np.max(map(float, dmstrs))<3266.4:
-        ffa_basenms_forpass = []
+    if np.max(map(float, dmstrs))<=3266.4:
         ffa_dmstrs = ffa_DMs(dmstrs)
         for dmstr in ffa_dmstrs:
             basenm = os.path.join(job.tempdir, job.basefilenm+"_DM"+dmstr)
-            ffa_basenms_forpass.append(basenm)
-
-        dats_str = '.dat '.join(ffa_basenms_forpass) + '.dat'
-        for datnm in dats_str:
+            datnm = basenm+".dat"
             cmd = "ffa.py %s"%(datnm)
             job.ffa_time += timed_execute(cmd)
+            try:
+                shutil.move(basenm+"_cands.ffa", job.workdir)
+            except: pass
+
 
 def sift_periodicity(job,dmstrs):
     # Sift through the candidates to choose the best to fold
@@ -871,11 +870,11 @@ def sift_singlepulse(job):
     if config.searching.sp_grouping and job.masked_fraction < 0.2:
         job.sp_grouping_time = time.time()
         #Group_sp_events.main()
-        cmd = "rratrap.py --use-configfile --use-DDplan --inffile %s *.singlepulse" % \
+        cmd = "rratrap.py --use-configfile --use-DMplan --inffile %s *.singlepulse" % \
               (job.basefilenm + "_rfifind.inf") 
         job.sp_grouping_time += timed_execute(cmd)
 
-        cmd = "make_spd.py --groupsfile groups.txt --maskfile %s --bandpass %s *.singlepulse" % \
+        cmd = "make_spd.py --groupsfile groups.txt --maskfile %s --bandpass --show-ts %s *.singlepulse" % \
               (job.basefilenm + "_rfifind.mask", job.filenmstr)
         job.sp_grouping_time += timed_execute(cmd)
 
@@ -887,6 +886,7 @@ def sift_singlepulse(job):
         job.sp_grouping_time = time.time() - job.sp_grouping_time
 
 def sift_ffa(job): 
+    job.ffa_sifting_time = time.time()
     ffa_cands = ffa_final.final_sifting_ffa(job.basefilenm, glob.glob(job.basefilenm+"*_DM*_cands.ffa"), job.basefilenm+".ffacands", job.zaplist)    
     job.ffa_sifting_time = time.time() - job.ffa_sifting_time
 
@@ -1034,7 +1034,7 @@ def search_job(job):
             
             # Search all the new DMs
             dmlist_forpass = ddplan.dmlist[passnum]
-            if job.search_ffa and np.max(map(float, dmlist_forpass))<3266.4:
+            if job.search_ffa and np.max(map(float, dmlist_forpass))<=3266.4:
                 ffa_search_pass(job,dmlist_forpass)
             if job.search_pdm:
                 periodicity_search_pass(job,dmlist_forpass)
@@ -1165,7 +1165,7 @@ def clean_up(job):
                  "*.pfd.rat",
                  "*.spd",
                  "*.spd.rat",
-                 "*_DM*_cands.ffa"]
+                 "*cands.ffa"]
 
     print "Tarring up results"
     for (tar_suffix, tar_glob) in zip(tar_suffixes, tar_globs):
@@ -1181,7 +1181,7 @@ def clean_up(job):
     
     # Copy all the important stuff to the output directory
     resultglobs = ["*rfifind.[bimors]*", "*.tgz", "*.png", \
-                    "*.zaplist", "search_params.txt", "*.accelcands*", \
+                    "*.zaplist", "search_params.txt", "*.accelcands*", "*.ffacands", \
                     "*_merge.out", "candidate_attributes.txt", "groups.txt.gz", \
                     "*_calrows.txt","spsummary.txt","*_radar_samples.txt"]
     
