@@ -65,7 +65,8 @@ class PeriodicityCandidate(upload.Uploadable,upload.FTPable):
               'prepfold_sigma': '%.12g', \
               'rescaled_prepfold_sigma': '%.12g', \
               'sifting_period': '%.12g', \
-              'sifting_dm': '%.12g'}
+              'sifting_dm': '%.12g', \
+              'search_type': '%s'}
 
     to_cmp_ffa = {'header_id': '%d', \
               'cand_num': '%d', \
@@ -88,22 +89,25 @@ class PeriodicityCandidate(upload.Uploadable,upload.FTPable):
               'prepfold_sigma': '%.12g', \
               'rescaled_prepfold_sigma': '%.12g', \
               'sifting_period': '%.12g', \
-              'sifting_dm': '%.12g'}
+              'sifting_dm': '%.12g', \
+              'search_type': '%s'}
 
     def __init__(self, cand_num, pfd , snr, coherent_power, \
                         incoherent_power, num_hits, num_harmonics, \
                         versionnum, sigma, sifting_period, sifting_dm, \
-                        cand_attribs, ffacand=False, header_id=None):
+                        cand_attribs, search_type, header_id=None):
         self.header_id = header_id # Header ID from database
         self.cand_num = cand_num # Unique identifier of candidate within beam's 
                                  # list of candidates; Candidate's position in
                                  # a list of all candidates produced in beam
                                  # ordered by decreasing sigma (where largest
                                  # sigma has cand_num=1).
+        self.search_type = search_type
         self.topo_freq, self.topo_f_dot, fdd = \
                 psr_utils.p_to_f(pfd.topo_p1, pfd.topo_p2, pfd.topo_p3)
         self.bary_freq, self.bary_f_dot, baryfdd = \
                 psr_utils.p_to_f(pfd.bary_p1, pfd.bary_p2, pfd.bary_p3)
+
         self.dm = pfd.bestdm # Dispersion measure
         self.snr = snr # signal-to-noise ratio
         self.coherent_power = coherent_power # Coherent power
@@ -146,10 +150,10 @@ class PeriodicityCandidate(upload.Uploadable,upload.FTPable):
         self.pipeline = config.basic.pipeline
         self.institution = config.basic.institution
     
+
         # Calculate a few more values
         self.topo_period = 1.0/self.topo_freq
         self.bary_period = 1.0/self.bary_freq
-
         # List of dependents (ie other uploadables that require 
         # the pdm_cand_id from this candidate)
         self.dependents = []
@@ -217,7 +221,8 @@ class PeriodicityCandidate(upload.Uploadable,upload.FTPable):
             "@prepfold_sigma=%.12g, " % self.prepfold_sigma + \
             "@rescaled_prepfold_sigma=%.12g, " % self.rescaled_prepfold_sigma + \
             "@sifting_period=%.12g, " % self.sifting_period + \
-            "@sifting_dm=%.12g" %self.sifting_dm
+            "@sifting_dm=%.12g, " %self.sifting_dm
+            "@search_type=%s" %self.search_type
         return sprocstr
 
     def compare_with_db(self, dbname='default'):
@@ -255,7 +260,8 @@ class PeriodicityCandidate(upload.Uploadable,upload.FTPable):
                         "c.prepfold_sigma as prepfold_sigma, " \
                         "c.rescaled_prepfold_sigma as rescaled_prepfold_sigma, " \
                         "c.sifting_period as sifting_period, " \
-                        "c.sifting_dm as sifting_dm " \
+                        "c.sifting_dm as sifting_dm, " \
+                        "c.search_type as search_type " \
                   "FROM pdm_candidates AS c " \
                   "LEFT JOIN versions AS v ON v.version_id=c.version_id " \
                   "WHERE c.cand_num=%d AND v.version_number='%s' AND " \
@@ -278,7 +284,7 @@ class PeriodicityCandidate(upload.Uploadable,upload.FTPable):
             desc = [d[0] for d in db.cursor.description]
             r = dict(zip(desc, rows[0]))
             errormsgs = []
-            if self.ffacand:
+            if self.search_type == "ffa":
                 for var, fmt in self.to_cmp_ffa.iteritems():
                     local = (fmt % getattr(self, var)).lower()
                     fromdb = (fmt % r[var]).lower()
@@ -886,7 +892,7 @@ def get_candidates(versionnum, directory, header_id=None, timestamp_mjd=None, in
             cand = PeriodicityCandidate(ii+1, pfd, c.snr, \
                                     c.cpow, c.ipow, len(c.dmhits), \
                                     c.numharm, versionnum, c.sigma, \
-                                    c.period, c.dm, cand_attribs, ffacands=False, \
+                                    c.period, c.dm, cand_attribs, c.search_type, \
                                     header_id=header_id)
         except Exception:
             raise PeriodicityCandidateError("PeriodicityCandidate could not be " \
@@ -912,7 +918,7 @@ def get_candidates(versionnum, directory, header_id=None, timestamp_mjd=None, in
             cand = PeriodicityCandidate(ii+1, pfd, c.snr, \
                                     c.cpow, c.ipow, len(c.dmhits), \
                                     c.numharm, versionnum, c.sigma, \
-                                    c.period, c.dm, cand_attribs, ffacands=True, \
+                                    c.period, c.dm, cand_attribs, c.search_type, \
                                     header_id=header_id)
         except Exception:
             raise PeriodicityCandidateError("PeriodicityCandidate could not be " \

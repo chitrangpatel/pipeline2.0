@@ -37,6 +37,7 @@ class AccelCand(object):
         self.r = float(r)
         self.z = float(z)
         self.dmhits = []
+        self.search_type = "fft"
 
     def add_dmhit(self, dm, snr, sigma):
         self.dmhits.append(DMHit(dm, snr))

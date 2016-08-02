@@ -37,6 +37,7 @@ class FFACand(object):
         self.r = "NULL"
         self.z = "NULL"
         self.dmhits = []
+        self.search_type = "ffa"
 
     def add_dmhit(self, dm, snr, sigma):
         self.dmhits.append(DMHit(dm, snr))
