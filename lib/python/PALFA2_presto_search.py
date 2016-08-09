@@ -283,8 +283,16 @@ def get_ffa_folding_command(cand, obs):
     #p = cand.p
     if cand.p < 0.5:
         N = 100
-        npart = 30
-        otheropts = "-nosearch"
+        npart = 40
+        otheropts = "-pstep 1 -pdstep 2 -dmstep 1 -nodmsearch"
+    elif cand.p < 2.0:
+        N = 200
+        npart = 40
+        otheropts = "-nosearch" 
+    elif cand.p < 5.0:
+        N = 200
+        npart = 40
+        otheropts = "-nosearch" 
     elif cand.p < 10.0:
         N = 200
         npart = 30
