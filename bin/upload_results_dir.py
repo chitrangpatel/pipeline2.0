@@ -19,43 +19,55 @@ import CornellFTP
 import JobUploader
 import config.upload
 import config.basic
+import ratings2.utils
+import ratings2.database
 
 def upload_results(dir):
   
     try:
-	db = database.Database('default', autocommit=False)
-
-	if not os.path.exists(dir) or not os.listdir(dir):
-	    errormsg = 'ERROR: Results directory, %s, does not exist or is empty' % dir
+    	db = database.Database('default', autocommit=False)
+    
+    	if not os.path.exists(dir) or not os.listdir(dir):
+    	    errormsg = 'ERROR: Results directory, %s, does not exist or is empty' % dir
             raise upload.UploadNonFatalError(errormsg)
-
-	
-	fitsfiles = glob.glob(os.path.join(dir, "*.fits"))
-	data = datafile.autogen_dataobj(fitsfiles)
-	version_number = JobUploader.get_version_number(dir)
-
-	hdr = header.get_header(fitsfiles)
-	print "\tHeader parsed."
-
-	cands, tempdir = candidates.get_candidates(version_number, dir)
-	print "\tPeriodicity candidates parsed."
-	sp_cands = sp_candidates.get_spcandidates(version_number, dir)
-	print "\tSingle pulse candidates parsed."
-
-	for c in (cands + sp_cands):
-	    hdr.add_dependent(c)
-	diags = diagnostics.get_diagnostics(data.obs_name, 
-					     data.beam_id, \
-					     data.obstype, \
-					     version_number, \
-					     dir)
-	print "\tDiagnostics parsed."
-
-	header_id = hdr.upload(db)
-	for d in diags:
-	    d.upload(db)
-	print "\tEverything uploaded and checked successfully. header_id=%d" % \
-		    header_id
+    
+    	
+        pdm_dir = os.path.join(dir,"zerodm") if config.upload.upload_zerodm_periodicity else dir
+        sp_dir = os.path.join(dir,"zerodm") if config.upload.upload_zerodm_singlepulse else dir
+    	fitsfiles = glob.glob(os.path.join(dir, "*.fits"))
+    	data = datafile.autogen_dataobj(fitsfiles)
+    	version_number = JobUploader.get_version_number(dir)
+    
+    	hdr = header.get_header(fitsfiles)
+    	print "\tHeader parsed."
+    
+        rat_inst_id_cache = ratings2.utils.RatingInstanceIDCache(dbname='common3')
+        #rat_inst_id_cache = ratings2.utils.RatingInstanceIDCache(dbname='MichellePalfaCands')
+    	#cands, tempdir = candidates.get_candidates(version_number, dir)
+        cands, tempdir = candidates.get_candidates(version_number, pdm_dir, \
+                                                   timestamp_mjd=data.timestamp_mjd, \
+                                                   inst_cache=rat_inst_id_cache)
+    	print "\tPeriodicity candidates parsed."
+    	#sp_cands = sp_candidates.get_spcandidates(version_number, dir)
+        sp_cands, tempdir_sp = sp_candidates.get_spcandidates(version_number, sp_dir, \
+                                                              timestamp_mjd=data.timestamp_mjd, \
+                                                              inst_cache=rat_inst_id_cache)
+    	print "\tSingle pulse candidates parsed."
+    
+    	for c in (cands + sp_cands):
+    	    hdr.add_dependent(c)
+    	diags = diagnostics.get_diagnostics(data.obs_name, 
+    					     data.beam_id, \
+    					     data.obstype, \
+    					     version_number, \
+    					     pdm_dir, sp_dir)
+    	print "\tDiagnostics parsed."
+    
+    	header_id = hdr.upload(db)
+    	for d in diags:
+    	    d.upload(db)
+    	print "\tEverything uploaded and checked successfully. header_id=%d" % \
+    		    header_id
 
     except (upload.UploadNonFatalError):
         exceptionmsgs = traceback.format_exception(*sys.exc_info())

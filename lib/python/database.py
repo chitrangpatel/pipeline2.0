@@ -48,11 +48,19 @@ DATABASES = {
         #'HOST': config.commondb.host,
         'DSN':  'FreeTDSDSN'
         },
+    'MichellePalfaCands': {
+        'DATABASE': 'MichellePalfaCands',
+        'UID':  config.commondb.username,
+        'PWD':  config.commondb.password,
+        #'HOST': config.commondb.host,
+        'DSN':  'FreeTDSDSN'
+        },
 }
 
 
 # Set defaults
 DEFAULTDB = 'common3'
+#DEFAULTDB = 'MichellePalfaCands'
 DATABASES['default'] = DATABASES[DEFAULTDB]
 
 

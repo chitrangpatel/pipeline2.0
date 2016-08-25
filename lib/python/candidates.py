@@ -198,6 +198,8 @@ class PeriodicityCandidate(upload.Uploadable,upload.FTPable):
         """Return the EXEC spPDMCandUploaderFindsVersion string to upload
             this candidate to the PALFA common DB.
         """
+        print self.search_type, self.sifting_dm, self.sifting_period, self.prepfold_sigma, self.rescaled_prepfold_sigma
+        print type(self.search_type), type(self.sifting_dm), type(self.sifting_period), type(self.prepfold_sigma), type(self.rescaled_prepfold_sigma)
         sprocstr = "EXEC spPDMCandUploaderFindsVersion " + \
             "@header_id=%d, " % self.header_id + \
             "@cand_num=%d, " % self.cand_num + \
@@ -221,8 +223,8 @@ class PeriodicityCandidate(upload.Uploadable,upload.FTPable):
             "@prepfold_sigma=%.12g, " % self.prepfold_sigma + \
             "@rescaled_prepfold_sigma=%.12g, " % self.rescaled_prepfold_sigma + \
             "@sifting_period=%.12g, " % self.sifting_period + \
-            "@sifting_dm=%.12g, " %self.sifting_dm
-            "@search_type=%s" %self.search_type
+            "@sifting_dm=%.12g, " % self.sifting_dm + \
+            "@search_type='%s'"%self.search_type
         return sprocstr
 
     def compare_with_db(self, dbname='default'):
@@ -906,7 +908,7 @@ def get_candidates(versionnum, directory, header_id=None, timestamp_mjd=None, in
         cands.append(cand)
         
     for ii, c in enumerate(ffa_foldedcands):
-        basefn = "%s_FFA_Cand_%d" % (c.ffafile.replace(".ffacands",""), c.candnum)
+        basefn = "%s%.2fms_Cand" % (c.ffafile.replace("_cands.ffa","_ffa_"), c.period*1000)
         pfdfn = os.path.join(pfd_tempdir, basefn+".pfd")
         pngfn = os.path.join(directory, basefn+".pfd.png")
         ratfn = os.path.join(tempdir, basefn+".pfd.rat")

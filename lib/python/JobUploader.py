@@ -126,6 +126,7 @@ def upload_results(job_submit):
         print "\tHeader parsed."
 
         rat_inst_id_cache = ratings2.utils.RatingInstanceIDCache(dbname='common3')
+        #rat_inst_id_cache = ratings2.utils.RatingInstanceIDCache(dbname='MichellePalfaCands')
         cands, tempdir = candidates.get_candidates(version_number, pdm_dir, \
                                                    timestamp_mjd=data.timestamp_mjd, \
                                                    inst_cache=rat_inst_id_cache)

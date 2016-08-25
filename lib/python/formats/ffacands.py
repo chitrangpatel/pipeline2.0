@@ -14,10 +14,10 @@ import types
 
 
 dmhit_re = re.compile(r'^ *DM= *(?P<dm>[^ ]*) *SNR= *(?P<snr>[^ ]*) *\** *$')
-candinfo_re = re.compile(r'^(?P<ffafile>.*):(?P<candnum>\d*) *(?P<period>[^ ]*)' \
+candinfo_re = re.compile(r'^(?P<ffafile>.*):(?P<candnum>\d*) \\t* *(?P<period>[^ ]*)' \
                          r' *(?P<snr>[^ ]*) *(?P<dm>[^ ]*) *(?P<dt>[^ ]*)' \
                          r' *\((?P<numhits>\d*)\)$')
-
+#                            file:candnum                                              P(ms)                         SNR               DM            dt(ms)        numhits
 
 class FFACand(object):
     """Object to represent candidates as they are listed
@@ -37,7 +37,7 @@ class FFACand(object):
         self.r = "NULL"
         self.z = "NULL"
         self.dmhits = []
-        self.search_type = "ffa"
+        self.search_type = 'ffa'
 
     def add_dmhit(self, dm, snr, sigma):
         self.dmhits.append(DMHit(dm, snr))
@@ -139,21 +139,31 @@ def parse_candlist(candlistfn):
         candlist = candlistfn
         toclose = False
     cands = FFACandlist()
+    cdict = {'filename': '', 'candnum': 0, 'period': 0.0, 'dm': 0.0, 'dt': 0.0,'numhits': ''}
     for line in candlist:
         if not line.partition("#")[0].strip():
             # Ignore lines with no content
             continue
-        candinfo_match = candinfo_re.match(line)
-        if candinfo_match:
-            cdict = candinfo_match.groupdict()
+        #candinfo_match = candinfo_re.match(line)
+        split_line = re.split(' +', line)
+        if line.startswith('p2030'):
+            cdict['ffafile'] = split_line[0].split(':')[0][:-4]+'_cands.ffa'
+            cdict['candnum'] = split_line[0].split(':')[1][:-1]
+            cdict['period'] = split_line[1]
+            cdict['snr'] = split_line[2]
+            cdict['dm'] = split_line[3]
+            cdict['dt'] = split_line[4]
+            cdict['numhits'] = split_line[5]
             cdict['period'] = float(cdict['period'])/1000.0 # convert ms to s
             cands.append(FFACand(**cdict))
-        else:
-            dmhit_match = dmhit_re.match(line)
-            if dmhit_match:
-                cands[-1].add_dmhit(**dmhit_match.groupdict())
-            else:
-                raise FFAcandsError("Line has unrecognized format!\n(%s)\n" % line)
+        #if candinfo_match:
+            #cdict = candinfo_match.groupdict()
+        #else:
+        #    dmhit_match = dmhit_re.match(line)
+        #    if dmhit_match:
+        #        cands[-1].add_dmhit(**dmhit_match.groupdict())
+        #    else:
+        #        raise FFAcandsError("Line has unrecognized format!\n(%s)\n" % line)
     if toclose:
         candlist.close()
     return cands

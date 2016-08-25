@@ -23,7 +23,8 @@ import database
 import upload
 import pipeline_utils
 from formats import accelcands
-from sp_pipeline import split_parameters
+from formats import ffacands
+from singlepulse.spio import split_parameters
 import config.basic
 
 
@@ -489,7 +490,7 @@ class MinSigmaFoldedDiagnostic(FloatDiagnostic):
         # find *.accelcands file
         candlists = glob.glob(os.path.join(self.directory, "*.accelcands"))
         pfdpngs = [os.path.split(fn)[-1] for fn in \
-                    glob.glob(os.path.join(self.directory, "*.pfd.png"))]
+                    glob.glob(os.path.join(self.directory, "*_ACCEL_*.pfd.png"))]
 
         if len(candlists) != 1:
             raise DiagnosticError("Wrong number of candidate lists found (%d)!" % \
@@ -500,6 +501,24 @@ class MinSigmaFoldedDiagnostic(FloatDiagnostic):
             base, accel = c.accelfile.split("_ACCEL_")
             pngfn = "%s_Z%s_ACCEL_Cand_%d.pfd.png" % (base, accel, c.candnum)
             if pngfn in pfdpngs:
+                sigmas.append(c.sigma)
+        
+        ffa_candlists = glob.glob(os.path.join(self.directory, "*.ffacands"))
+        ffa_pfdpngs = [os.path.split(fn)[-1] for fn in \
+                    glob.glob(os.path.join(self.directory, "*_ffa_*.pfd.png"))]
+        if len(ffa_candlists) != 1:
+            raise DiagnosticError("Wrong number of ffa candidate lists found (%d)!" % \
+                                    len(ffa_candlists))
+        ffa_candlist = ffacands.parse_candlist(ffa_candlists[0])
+        
+        #candlist.extend(ffa_candlist)
+        pfdpngs.extend(ffa_pfdpngs)
+        #sigmas = []
+        for c in ffa_candlist:
+            #base, accel = c.accelfile.split("_ACCEL_")
+            #pngfn = "%s_Z%s_ACCEL_Cand_%d.pfd.png" % (base, accel, c.candnum)
+            pngfn = "%s%.2fms_Cand.pfd.png"%(c.ffafile.replace("_cands.ffa","_ffa_"),c.period*1000)
+            if pngfn in ffa_pfdpngs:
                 sigmas.append(c.sigma)
         if len(pfdpngs) > len(sigmas):
             raise DiagnosticError("Not all *.pfd.png images were found " \
@@ -890,7 +909,7 @@ class MaxCandsToFold(FloatDiagnostic):
     def get_diagnostic(self):
         # find the search parameters
         params = get_search_params(self.directory)
-        self.value = params['max_cands_to_fold']
+        self.value = params['max_accel_cands_to_fold']+params['max_ffa_cands_to_fold']
 
 
 def get_search_paramfn(dir):
