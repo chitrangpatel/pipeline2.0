@@ -71,21 +71,21 @@ class PeriodicityCandidate(upload.Uploadable,upload.FTPable):
     to_cmp_ffa = {'header_id': '%d', \
               'cand_num': '%d', \
               'topo_freq': '%.12g', \
-              'bary_freq': 'NULL', \
+              'bary_freq': '%.12g', \
               'topo_period': '%.12g', \
-              'bary_period': 'NULL', \
-              'topo_f_dot': 'NULL', \
-              'bary_f_dot': 'NULL', \
+              'bary_period': '%.12g', \
+              'topo_f_dot': '%.12g', \
+              'bary_f_dot': '%.12g', \
               'dm': '%.12g', \
               'snr': '%.12g', \
-              'coherent_power': 'NULL', \
-              'incoherent_power': 'NULL', \
+              'coherent_power': '%s', \
+              'incoherent_power': '%s', \
               'num_hits': '%d', \
               'num_harmonics': '%d', \
               'institution': '%s', \
               'pipeline': '%s', \
               'versionnum': '%s', \
-              'sigma': 'NULL', \
+              'sigma': '%s', \
               'prepfold_sigma': '%.12g', \
               'rescaled_prepfold_sigma': '%.12g', \
               'sifting_period': '%.12g', \
@@ -198,8 +198,6 @@ class PeriodicityCandidate(upload.Uploadable,upload.FTPable):
         """Return the EXEC spPDMCandUploaderFindsVersion string to upload
             this candidate to the PALFA common DB.
         """
-        print self.search_type, self.sifting_dm, self.sifting_period, self.prepfold_sigma, self.rescaled_prepfold_sigma
-        print type(self.search_type), type(self.sifting_dm), type(self.sifting_period), type(self.prepfold_sigma), type(self.rescaled_prepfold_sigma)
         sprocstr = "EXEC spPDMCandUploaderFindsVersion " + \
             "@header_id=%d, " % self.header_id + \
             "@cand_num=%d, " % self.cand_num + \
@@ -211,20 +209,25 @@ class PeriodicityCandidate(upload.Uploadable,upload.FTPable):
             "@bary_f_dot=%.12g, " % self.bary_f_dot + \
             "@dm=%.12g, " % self.dm + \
             "@snr=%.12g, " % self.snr + \
-            "@coherent_power=%.12g, " % self.coherent_power + \
-            "@incoherent_power=%.12g, " % self.incoherent_power + \
             "@num_hits=%d, " % self.num_hits + \
             "@num_harmonics=%d, " % self.num_harmonics + \
             "@institution='%s', " % config.basic.institution + \
             "@pipeline='%s', " % config.basic.pipeline + \
             "@version_number='%s', " % self.versionnum + \
             "@proc_date='%s', " % datetime.date.today().strftime("%Y-%m-%d") + \
-            "@presto_sigma=%.12g, " % self.sigma + \
             "@prepfold_sigma=%.12g, " % self.prepfold_sigma + \
             "@rescaled_prepfold_sigma=%.12g, " % self.rescaled_prepfold_sigma + \
-            "@sifting_period=%.12g, " % self.sifting_period + \
             "@sifting_dm=%.12g, " % self.sifting_dm + \
-            "@search_type='%s'"%self.search_type
+            "@sifting_period=%.12g, " % self.sifting_period + \
+            "@search_type='%s', " % self.search_type
+        if self.search_type=='fft':
+            sprocstr += "@coherent_power=%.12g, " % self.coherent_power + \
+                        "@incoherent_power=%.12g, " % self.incoherent_power + \
+                        "@presto_sigma=%.12g" % self.sigma
+        else:
+            sprocstr += "@coherent_power=NULL, " + \
+                        "@incoherent_power=NULL, " + \
+                        "@presto_sigma=NULL"
         return sprocstr
 
     def compare_with_db(self, dbname='default'):
@@ -291,8 +294,9 @@ class PeriodicityCandidate(upload.Uploadable,upload.FTPable):
                     local = (fmt % getattr(self, var)).lower()
                     fromdb = (fmt % r[var]).lower()
                     if local != fromdb:
-                        errormsgs.append("Values for '%s' don't match (local: %s, DB: %s)" % \
-                                            (var, local, fromdb))
+                        if not (fromdb == 'none' and local=='null'):
+                            errormsgs.append("Values for '%s' don't match (local: %s, DB: %s)" % \
+                                                (var, local, fromdb))
             else:            
                 for var, fmt in self.to_cmp.iteritems():
                     local = (fmt % getattr(self, var)).lower()
@@ -880,6 +884,7 @@ def get_candidates(versionnum, directory, header_id=None, timestamp_mjd=None, in
     # Loop over candidates that were folded
     cands = []
     cands.append(pfd_tarball)
+    counter = 0
     for ii, c in enumerate(foldedcands):
         basefn = "%s_ACCEL_Cand_%d" % (c.accelfile.replace("ACCEL_", "Z"), \
                                     c.candnum)
@@ -906,6 +911,7 @@ def get_candidates(versionnum, directory, header_id=None, timestamp_mjd=None, in
         ratvals = ratings2.rating_value.read_file(ratfn)
         cand.add_dependent(PeriodicityCandidateRating(ratvals,inst_cache=inst_cache))
         cands.append(cand)
+        counter +=1
         
     for ii, c in enumerate(ffa_foldedcands):
         basefn = "%s%.2fms_Cand" % (c.ffafile.replace("_cands.ffa","_ffa_"), c.period*1000)
@@ -917,7 +923,7 @@ def get_candidates(versionnum, directory, header_id=None, timestamp_mjd=None, in
         cand_attribs = dict(attribs[attribs[:,0] == basefn+".pfd"][:,1:])
         
         try:
-            cand = PeriodicityCandidate(ii+1, pfd, c.snr, \
+            cand = PeriodicityCandidate(counter+ii+1, pfd, c.snr, \
                                     c.cpow, c.ipow, len(c.dmhits), \
                                     c.numharm, versionnum, c.sigma, \
                                     c.period, c.dm, cand_attribs, c.search_type, \

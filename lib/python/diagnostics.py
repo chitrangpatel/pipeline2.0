@@ -1059,7 +1059,7 @@ DIAGNOSTIC_TYPES = [RFIPercentageDiagnostic,
                     NumRank4SPGroups,
                     NumRank5SPGroups,
                     NumRank6SPGroups,
-                    NumRank7SPGroups
+                    #NumRank7SPGroups
                    ]
 
 
