@@ -291,15 +291,15 @@ def get_ffa_folding_command(cand, obs):
         otheropts = "-nosearch" 
     elif cand.p < 5.0:
         N = 200
-        npart = 40
+        npart = 30
         otheropts = "-nosearch" 
     elif cand.p < 10.0:
         N = 200
-        npart = 30
+        npart = 20
         otheropts = "-nosearch" 
     else:
         N = 200
-        npart = 20
+        npart = 10
         otheropts = "-nosearch"
 
     #otheropts += " -fixchi" if config.searching.use_fixchi else ""
@@ -1189,7 +1189,7 @@ def clean_up(job):
     
     # Copy all the important stuff to the output directory
     resultglobs = ["*rfifind.[bimors]*", "*.tgz", "*.png", \
-                    "*.zaplist", "search_params.txt", "*.accelcands*", "*.ffacands", \
+                    "*.zaplist", "search_params.txt", "*.accelcands*", "*.ffacands*", \
                     "*_merge.out", "candidate_attributes.txt", "groups.txt.gz", \
                     "*_calrows.txt","spsummary.txt","*_radar_samples.txt"]
     
