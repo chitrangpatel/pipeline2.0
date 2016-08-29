@@ -257,7 +257,7 @@ class SinglePulseTarball(upload.FTPable,upload.Uploadable):
             else:
 	        cftp.upload(self.fullpath, ftp_fullpath)
 
-	    db.execute("spSPCandBinUploadConf " + \
+	    db.execute("spSPFilesBinUploadConf " + \
 		   "@sp_file_type='%s', " % self.filetype + \
 		   "@filename='%s', " % self.filename + \
 		   "@file_location='%s', " % self.ftp_path + \
