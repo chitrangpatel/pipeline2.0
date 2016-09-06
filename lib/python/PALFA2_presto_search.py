@@ -288,19 +288,19 @@ def get_ffa_folding_command(cand, obs):
     elif cand.p < 2.0:
         N = 200
         npart = 40
-        otheropts = "-nosearch" 
+        otheropts = "-nosearch -slow" 
     elif cand.p < 5.0:
         N = 200
         npart = 30
-        otheropts = "-nosearch" 
+        otheropts = "-nosearch -slow" 
     elif cand.p < 10.0:
         N = 200
         npart = 20
-        otheropts = "-nosearch" 
+        otheropts = "-nosearch -slow" 
     else:
         N = 200
         npart = 10
-        otheropts = "-nosearch"
+        otheropts = "-nosearch -slow"
 
     #otheropts += " -fixchi" if config.searching.use_fixchi else ""
 
@@ -571,7 +571,7 @@ def main(filenms, workdir, resultsdir):
         shutil.copy(zaplist,zerodm_job.workdir)
 
         # copy radar samples list from non-zerodm job to zerodm job workdir (if exists)
-        radar_list = glob.glob(os.path.join(job.outputdir,"*_radar_samples.txt"))
+        radar_list = glob.glob(os.path.join(job.outputdir,"*merged_radar_samples.txt"))
         if radar_list:
             shutil.copy(radar_list[0],zerodm_job.workdir)
 
