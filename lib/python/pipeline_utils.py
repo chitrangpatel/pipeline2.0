@@ -230,7 +230,7 @@ def get_zaplist_tarball(force_download=False, no_check=False, verbose=False):
     import tarfile
 
     if config.searching.use_radar_clipping:
-        zaptar_basename = "zaplists_noradar.tar.gz"
+        zaptar_basename = "PALFA4_zaplists_noradar.tar.gz"
     else:
         zaptar_basename = "zaplists.tar.gz"
     
