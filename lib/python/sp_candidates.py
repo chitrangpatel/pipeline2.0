@@ -24,7 +24,7 @@ import CornellFTP
 import database
 import upload
 import pipeline_utils
-import sp_utils
+import singlepulse.read_spd as read_spd
 import ratings2
 
 import config.basic
@@ -1131,7 +1131,7 @@ def get_spcandidates(versionnum, directory, header_id=None, timestamp_mjd=None, 
         ratfn = os.path.join(tempdir, \
                 os.path.basename(spdfn.replace(".spd",".spd.rat")))
 
-        spd = sp_utils.spd(spdfn)
+        spd = read_spd.spd(spdfn)
         cand = SinglePulseCandidate(ii+1, spd, versionnum, header_id=header_id)
         cand.add_dependent(SinglePulseCandidatePNG(pngfn))
         cand.add_dependent(SinglePulseCandidateSPD(spdfn, spd_size, remote_spd_dir=remote_spd_dir))
