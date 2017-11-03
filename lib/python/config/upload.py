@@ -23,9 +23,9 @@ upload_zerodm_periodicity = False
 upload_zerodm_singlepulse = True
 
 # Directory on the FTP server to upload PFDs and singlepulse files (do not change unless asked by Adam)
-pfd_ftp_dir = 'pfd7/PRESTO4'
-spd_ftp_dir = 'spd7/PRESTO4'
-sp_ftp_dir = 'singlePulse7/PRESTO4'
+pfd_ftp_dir = 'pfd9/PRESTO4'
+spd_ftp_dir = 'spd9/PRESTO4'
+sp_ftp_dir = 'singlePulse9/PRESTO4'
 
 import upload_check
 upload_check.upload.populate_configs(locals())

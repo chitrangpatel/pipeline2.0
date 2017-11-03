@@ -14,6 +14,8 @@ import types
 import tarfile
 import tempfile
 
+from astropy.coordinates import SkyCoord
+from astropy import units as astrounits
 import numpy as np
 import scipy
 import psr_utils
@@ -213,10 +215,27 @@ def get_folding_command(cand, obs):
         Mp, Mdm, N = 1, 1, 100
         npart = 30
         otheropts = "-pstep 1 -pdstep 2 -dmstep 1 -nodmsearch"
-    else:
+    #else:
+    #    Mp, Mdm, N = 1, 1, 200
+    #    npart = 30
+    #    otheropts = "-nopdsearch -pstep 1 -pdstep 2 -dmstep 1 -nodmsearch"
+    elif cand.p < 2.0:
         Mp, Mdm, N = 1, 1, 200
         npart = 30
-        otheropts = "-nopdsearch -pstep 1 -pdstep 2 -dmstep 1 -nodmsearch"
+        otheropts = "-nosearch -slow" 
+    elif cand.p < 5.0:
+        Mp, Mdm, N = 1, 1, 200
+        npart = 30
+        otheropts = "-nosearch -slow" 
+    elif cand.p < 10.0:
+        Mp, Mdm, N = 1, 1, 200
+        npart = 20
+        otheropts = "-nosearch -slow" 
+    else:
+        Mp, Mdm, N = 1, 1, 200
+        npart = 10
+        otheropts = "-nosearch -slow"
+
 
     #otheropts += " -fixchi" if config.searching.use_fixchi else ""
 
@@ -359,6 +378,15 @@ class obs_info:
         self.MJD = spec_info.start_MJD[0]
         self.ra_string = spec_info.ra_str
         self.dec_string = spec_info.dec_str
+        coords = SkyCoord('%s %s'%(self.ra_string, self.dec_string), unit=(astrounits.hourangle, astrounits.deg)).galactic
+        ra_gal = float(coords.to_string().split(' ')[0])
+        #dec_gal = float(coords.to_string().split(' ')[1])
+        if (ra_gal > 30. and ra_gal < 80.):
+            self.obs_type = 'InnerGalaxy'
+        elif (ra_gal > 160. and ra_gal < 220):
+            self.obs_type = 'OuterGalaxy'
+        else:    
+            self.obs_type = 'InnerGalaxy'
         self.orig_N = spec_info.N
         self.dt = spec_info.dt # in sec
         self.BW = spec_info.BW
@@ -542,7 +570,6 @@ def main(filenms, workdir, resultsdir):
 
     # Change to the specified working directory
     os.chdir(workdir)
-
     job = set_up_job(filenms, workdir, resultsdir)
     
     print "\nBeginning PALFA search of %s" % (', '.join(job.filenms))
@@ -571,9 +598,10 @@ def main(filenms, workdir, resultsdir):
         shutil.copy(zaplist,zerodm_job.workdir)
 
         # copy radar samples list from non-zerodm job to zerodm job workdir (if exists)
-        radar_list = glob.glob(os.path.join(job.outputdir,"*merged_radar_samples.txt"))
-        if radar_list:
-            shutil.copy(radar_list[0],zerodm_job.workdir)
+        if config.searching.use_radar_clipping:
+            radar_list = glob.glob(os.path.join(job.outputdir,"*merged_radar_samples.txt"))
+            if radar_list:
+                shutil.copy(radar_list[0],zerodm_job.workdir)
 
         # copy raw data file to zerodm workdir
         for fn in filenms:
@@ -707,12 +735,22 @@ def periodicity_search_pass(job,dmstrs):
     
         # Do the high-acceleration search (only for non-zerodm case)
         if not job.zerodm:
-            cmd = "accelsearch -inmem -numharm %d -sigma %f " \
-                    "-zmax %d -flo %f %s"%\
-                    (config.searching.hi_accel_numharm, \
-                     config.searching.hi_accel_sigma, \
-                     config.searching.hi_accel_zmax, \
-                     config.searching.hi_accel_flo, fftnm)
+            # If Outer Galaxy observations use -inmem (saves processing time but increases memory usage)
+            if job.obs_type == 'OuterGalaxy':
+                cmd = "accelsearch -inmem -numharm %d -sigma %f " \
+                        "-zmax %d -flo %f %s"%\
+                        (config.searching.hi_accel_numharm, \
+                         config.searching.hi_accel_sigma, \
+                         config.searching.hi_accel_zmax, \
+                         config.searching.hi_accel_flo, fftnm)
+            # If Inner Galaxy do not use -inmem. Doubles proccessing time but reduces memory usage.
+            else:
+                cmd = "accelsearch -numharm %d -sigma %f " \
+                        "-zmax %d -flo %f %s"%\
+                        (config.searching.hi_accel_numharm, \
+                         config.searching.hi_accel_sigma, \
+                         config.searching.hi_accel_zmax, \
+                         config.searching.hi_accel_flo, fftnm)
             job.hi_accelsearch_time += timed_execute(cmd)
             try:
                 os.remove(basenm+"_ACCEL_%d.txtcand" % config.searching.hi_accel_zmax)
@@ -878,11 +916,11 @@ def sift_singlepulse(job):
     if config.searching.sp_grouping and job.masked_fraction < 0.2:
         job.sp_grouping_time = time.time()
         #Group_sp_events.main()
-        cmd = "rratrap.py --use-configfile --use-DMplan --inffile %s *.singlepulse" % \
+        cmd = "rrattrap.py --use-configfile --use-DMplan --vary-group-size --inffile %s *.singlepulse" % \
               (job.basefilenm + "_rfifind.inf") 
         job.sp_grouping_time += timed_execute(cmd)
 
-        cmd = "make_spd.py --groupsfile groups.txt --maskfile %s --bandpass --show-ts %s *.singlepulse" % \
+        cmd = "make_spd.py --groupsfile groups.txt --maskfile %s --bandpass --save-mem --show-ts %s *.singlepulse" % \
               (job.basefilenm + "_rfifind.mask", job.filenmstr)
         job.sp_grouping_time += timed_execute(cmd)
 

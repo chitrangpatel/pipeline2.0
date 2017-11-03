@@ -72,17 +72,21 @@ def create_jobs_for_new_files():
                                 "ON job_files.file_id=files.id " \
                             "WHERE files.status IN ('downloaded', 'added') " \
                                 "AND job_files.id IS NULL")
+    print "selecting new entries."
     newfns = [str(row['filename']) for row in rows]
 
     # Group together files that belong together
     groups = datafile.group_files(newfns)
+    print "grouping entries."
 
     # Keep only groups that are not missing any files
     complete_groups = [grp for grp in groups if datafile.is_complete(grp)]
 
+    print "complete group entries."
     if complete_groups:
         jobpool_cout.outs("Inserting %d new entries into jobs table" % \
                             len(complete_groups))
+        print "Inserting entries."
     for complete in complete_groups:
         # Insert new job and link it to data files
         queries = []
@@ -120,8 +124,11 @@ def rotate():
         assumed to be completed successfuly and upload of the results is called upon the job
     """
     create_jobs_for_new_files()
+    print "created entries"
     update_jobs_status_from_queue()
+    print "updated entries"
     recover_failed_jobs()
+    print "recovered failed entries"
     submit_jobs()
 
 def update_jobs_status_from_queue():
@@ -167,6 +174,7 @@ def update_jobs_status_from_queue():
                                     "updated_at=? " \
                                "WHERE id=?")
                 arglists.append((errormsg, jobtracker.nowstr(), submit['id']))
+                print arglists
                 jobtracker.execute(queries, arglists)
             else:
                 # No errors. Woohoo!
@@ -286,12 +294,13 @@ def submit_jobs():
         jobs.extend(jobtracker.query("SELECT * FROM jobs " \
                                      "WHERE status='new'" \
                                      "ORDER BY updated_at ASC"))
-
-    for job in jobs[:50]:
+    for job in jobs[:250]:
         if config.jobpooler.queue_manager.can_submit():
-            submit(job)
-            if config.jobpooler.submit_sleep:
-                time.sleep(config.jobpooler.submit_sleep)
+            try:
+                submit(job)
+                if config.jobpooler.submit_sleep:
+                   time.sleep(config.jobpooler.submit_sleep)
+            except: pass
         else:
             break
 
@@ -306,19 +315,51 @@ def submit(job_row):
         None
     """
     fns = pipeline_utils.get_fns_for_jobid(job_row['id']) 
-    
+    bad_days = ['20170414', '20170419', '20170420', '20170423', '20170423', '20170427', '20170429', '20170503', '20170510', '20170516']
+    bad_beams = ['b5', 'b6']
+    for bad_day in bad_days:
+        if bad_day in fns[0]:
+            if (bad_beams[0] in fns[0]) or (bad_beams[1] in fns[0]):
+                print "Files affected by the bad beams 5, 6 60Hz signal: ", fns
+                print "Will delete the raw data files."
+                queries=[]
+                arglist=[]
+                queries.append("INSERT INTO job_submits (" \
+                                    "job_id, " \
+                                    "status, " \
+                                    "created_at, " \
+                                    "updated_at, " \
+                                    "details) " \
+                                    "VALUES (?, ?, ?, ?, ?)" )
+                arglist.append( ( job_row['id'], 'Beams 5 and 6', \
+                                  jobtracker.nowstr(), jobtracker.nowstr(), \
+                                  "Affected by 60Hz signal") )
+                queries.append("UPDATE jobs " \
+                               "SET status='terminal_failure', " \
+                               "details='Beams 5 and 6 affected by 60Hz signal', " \
+                               "updated_at=? " \
+                               "WHERE id=?" )
+                arglist.append( (jobtracker.nowstr(), job_row['id']) )
+                jobtracker.execute(queries, arglist)
+                return
+
     try:
         presubmission_check(fns)
         outdir = get_output_dir(fns)
         # Attempt to submit the job
+        if job_row['status'] == 'retrying':
+            ppn=2
+        else: 
+            ppn=1
         if config.jobpooler.alternative_submit_script:
             print "Submitting:", config.jobpooler.alternative_submit_script
             queue_id = config.jobpooler.queue_manager.submit\
                         (fns, outdir, job_row['id'],\
-                         script=config.jobpooler.alternative_submit_script)
+                         script=config.jobpooler.alternative_submit_script,\
+                         ppn=ppn)
         else:
             queue_id = config.jobpooler.queue_manager.submit\
-                        (fns, outdir, job_row['id'])
+                        (fns, outdir, job_row['id'], ppn=ppn)
     except (FailedPreCheckError):
         # Error caught during presubmission check.
         exceptionmsgs = traceback.format_exception(*sys.exc_info())
@@ -457,6 +498,7 @@ def get_output_dir(fns):
     if not isinstance(data, datafile.PsrfitsData):
         errormsg  = "Data must be of PSRFITS format.\n"
         errormsg += "\tData type: %s\n" % type(data)
+
         raise pipeline_utils.PipelineError(errormsg)
 
     # Generate output directory
@@ -497,8 +539,11 @@ def presubmission_check(fns):
     missingfiles = [fn for fn in fns if not os.path.exists(fn)]
     if missingfiles:
         errormsg = "The following files cannot be found:\n"
+        f = open('/home/patelc14/missing_files.txt','w')
         for missing in missingfiles:
+            f.write(missing+'\n')
             errormsg += "\t%s\n" % missing
+        f.close()
         raise pipeline_utils.PipelineError(errormsg) # if files missing want to crash
     try:
         #for WAPP, check if coords are in table

@@ -21,6 +21,7 @@ import astro_utils.calendar
 import config.processing
 import pipeline_utils
 
+
 def warn_to_stdout(message, category, filename, lineno, file=None, line=None):
     """A function to replace warnings.showwarning so that warnings are
         printed to STDOUT instead of STDERR.
@@ -135,7 +136,7 @@ def set_up():
     print "Local working directory:", workdir
     print "Local results directory:", resultsdir
     print "When finished results will be copied to: %s" % outdir
-
+    
     # Copy data files locally
     for fn in fns:
         system_call("rsync -auvl %s %s" % (fn, workdir))
@@ -147,7 +148,6 @@ def set_up():
 def search(fns, workdir, resultsdir):
     # Search the data
     print "Go-Go-Gadget pulsar search..."
-    print sys.path
     import PALFA2_presto_search
     PALFA2_presto_search.main(fns, workdir, resultsdir)
     
@@ -181,7 +181,7 @@ def copy_zaplist(fns, workdir):
 
     members = zaptar.getmembers()
     for customzapfn in customzapfns:
-        radar_samples_fn = os.path.splitext(customzapfn)[0] + '_radar_samples.txt'
+        radar_samples_fn = os.path.splitext(customzapfn)[0] + '_merged_radar_samples.txt'
         matches = [mem for mem in members \
                     if mem.name.endswith(customzapfn)]
         radar_matches = [mem for mem in members \

@@ -92,6 +92,8 @@ class FloatDiagnostic(Diagnostic):
         self.get_diagnostic()
 
     def get_upload_sproc_call(self):
+        if self.value == "NULL":
+            self.value = 0.0
         sprocstr = "EXEC spDiagnosticAdder " \
             "@obs_name='%s', " % self.obs_name + \
             "@beam_id=%d, " % self.beam_id + \

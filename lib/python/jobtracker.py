@@ -265,6 +265,7 @@ def query(queries, fetchone=False):
             db_conn = sqlite3.connect(config.background.jobtracker_db,timeout=40.0)
             db_conn.isolation_level = 'DEFERRED'
             db_conn.row_factory = sqlite3.Row
+            db_conn.text_factory = lambda x: unicode(x, 'utf-8', 'ignore')
             db_cur = db_conn.cursor()
             for q in queries:
                 if debug.JOBTRACKER:
@@ -325,6 +326,7 @@ def execute(queries, arglists, fetchone=False):
             db_conn = sqlite3.connect(config.background.jobtracker_db,timeout=40.0)
             db_conn.isolation_level = 'DEFERRED'
             db_conn.row_factory = sqlite3.Row
+            db_conn.text_factory = lambda x: unicode(x, 'utf-8', 'ignore')
             db_cur = db_conn.cursor()
             for q, args in zip(queries, arglists):
                 db_cur.execute(q, args)

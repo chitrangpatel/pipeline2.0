@@ -15,6 +15,8 @@ import psr_utils
 from astro_utils import protractor
 from astro_utils import calendar
 
+from memory_profiler import profile
+
 try:
     import astropy.io.fits as pyfits
 except ImportError:
@@ -25,7 +27,6 @@ date_obs_re = re.compile(r"^(?P<year>[0-9]{4})-(?P<month>[0-9]{2})-" \
                             "(?P<day>[0-9]{2})T(?P<hour>[0-9]{2}):" \
                             "(?P<min>[0-9]{2}):(?P<sec>[0-9]{2}" \
                             "(?:\.[0-9]+)?)$")
-
 class SpectraInfo:
     def __init__(self, filenames, verbose=False):
         self.filenames = filenames
@@ -56,7 +57,8 @@ class SpectraInfo:
             
             # Open the PSRFITS file
             hdus = pyfits.open(fn, mode='readonly', checksum=False)
-            self.hdus = hdus
+            #self.hdus = hdus
+            #self.num_ifs = hdus[1].header['NUMIFS']
 
             if ii==0:
                 self.hdu_names = [hdu.name for hdu in hdus]

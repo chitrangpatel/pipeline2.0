@@ -12,7 +12,6 @@ modes.sort()
 for ii, (m, desc) in enumerate(modes):
     exec("%s = False" % m.upper())
 
-
 def set_mode_on(*modes):
     for m in modes:
         exec "%s = True" % m.upper() in globals() 

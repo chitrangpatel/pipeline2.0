@@ -228,8 +228,9 @@ class PsrfitsData(Data):
     def __init__(self, fitsfns):
         """PSR fits Header object constructor.
         """
-        from formats import psrfits        
-        
+        import psrfits
+        #from formats import psrfits        
+         
         super(PsrfitsData, self).__init__(fitsfns)
         # Read information from files
         self.specinfo = psrfits.SpectraInfo(self.fns)
@@ -307,6 +308,7 @@ class WappPsrfitsData(PsrfitsData):
         super(WappPsrfitsData, self).__init__(fitsfns)
         self.obstype = 'WAPP'
         self.beam_id = self.specinfo.beam_id
+        print self.beam_id
         if self.beam_id is None:
             raise ValueError("Beam number not encoded in PSR fits header.")
         self.get_correct_positions()
@@ -419,7 +421,6 @@ class MockPsrfitsBaseData(PsrfitsData):
     # The end-of-line mark is before the start-of-line mark
     # This variable should be overridden by subclasses of Header
     filename_re = re.compile('$x^')
-    
     def __init__(self, fitsfns):
         super(MockPsrfitsBaseData, self).__init__(fitsfns)
         self.obstype = 'Mock'
@@ -492,13 +493,13 @@ class MockPsrfitsData(MockPsrfitsBaseData):
     filename_re = re.compile(r'^4bit-(?P<projid>[Pp]\d{4})\.(?P<date>\d{8})\.' \
                                 r'(?P<source>.*)\.b(?P<beam>[0-7])' \
                                 r's(?P<subband>[01])g0.(?P<scan>\d{5})\.fits')
-
     def __init__(self, fitsfns):
         super(MockPsrfitsData, self).__init__(fitsfns)
         self.beam_id = self.specinfo.beam_id
         if self.beam_id is None:
             raise ValueError("Beam number not encoded in PSR fits header.")
-        self.num_ifs = self.specinfo.hdus[1].header['NUMIFS']
+        #self.num_ifs = self.specinfo.hdus[1].header['NUMIFS']
+        self.num_ifs = 2
 
     @classmethod
     def are_grouped(cls, fn1, fn2):

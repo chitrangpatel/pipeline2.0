@@ -12,7 +12,7 @@ import config.basic
 import config.email
 
 class PBSManager(queue_managers.generic_interface.PipelineQueueManager):
-    def __init__(self, job_basename, property, walltime_per_gb=50, \
+    def __init__(self, job_basename, property, walltime_per_gb=60, \
                     rapID=None):
         """Constructor for the PBS queue manager interface.
 
@@ -38,7 +38,7 @@ class PBSManager(queue_managers.generic_interface.PipelineQueueManager):
         self.queue = self._get_PBSQueue(first_run=True)
 
     def submit(self, datafiles, outdir, job_id, \
-                script=os.path.join(config.basic.pipelinedir, 'bin', 'search.py')):
+                script=os.path.join(config.basic.pipelinedir, 'bin', 'search.py'), ppn=1):
         """Submits a job to the queue to be processed.
             Returns a unique identifier for the job.
 
@@ -48,6 +48,8 @@ class PBSManager(queue_managers.generic_interface.PipelineQueueManager):
                 job_id: The unique job identifer from the jobtracker database.
                 script: The script to submit to the queue. (Default:
                         '{config.basic.pipelinedir}/bin/search.py')
+                ppn: processors per node when submitting a job. 
+                     (Default: 1)
 
             Output:
                 jobid: A unique job identifier.
@@ -67,21 +69,29 @@ class PBSManager(queue_managers.generic_interface.PipelineQueueManager):
         walltime_hrs = int( self.walltime_per_gb * filesize)
         if walltime_hrs < 16:
             walltime = '16:00:00'
+        elif walltime_hrs < 60:
+            walltime = '78:00:00'
+        #elif walltime_hrs > 100:
+        #    walltime = '96:00:00'
         else:
             walltime = str( walltime_hrs ) + ':00:00'
         print 'Filesize:',filesize,'GB Walltime:', walltime
 	
         errorlog = os.path.join(config.basic.qsublog_dir, "'$PBS_JOBID'.ER")
-        if debug.PROCESSING:
-            stdoutlog = os.path.join(config.basic.qsublog_dir, "'$PBS_JOBID'.OU")
-        else:
-            stdoutlog = os.devnull
+        stdoutlog = os.path.join(config.basic.qsublog_dir, "'$PBS_JOBID'.OU")
+        #if debug.PROCESSING:
+        #    stdoutlog = os.path.join(config.basic.qsublog_dir, "'$PBS_JOBID'.OU")
+        #else:
+        #    stdoutlog = os.devnull
 
         # bit of hack to get jobs that are short enough to go to Sandy Bridge nodes
+        print "Will submit ppn: %i"%ppn
         if filesize < 1.0:
-            resources = 'nodes=1:ppn=1:sandybridge,walltime=36:00:00'
+            #resources = 'nodes=1:ppn=1:sandybridge,walltime=36:00:00'
+            resources = 'nodes=1:ppn=%i,walltime=%s' % (ppn, walltime)   
         else:
-            resources = 'nodes=1:ppn=1,walltime=%s' % walltime
+            resources = 'nodes=1:ppn=%i,walltime=%s' % (ppn, walltime)
+            #resources = 'nodes=1:ppn=2,walltime=%s' % walltime ####################### Temporary Hack -- investigate memory usage ######################  
 
         # temporarily use -V option and define variables before, since -v not working
         os.putenv('DATAFILES',';'.join(datafiles))
